@@ -1,15 +1,18 @@
 /***************************************************************************//**
- * @file displayconfigapp.h
+ * @file
  * @brief Display application specific configuration file.
  * @version 4.4.0
  *******************************************************************************
- * @section License
- * <b>Copyright 2015 Silicon Labs, Inc. http://www.silabs.com</b>
+ * # License
+ * <b>Copyright 2018 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
- * This file is licensed under the Silabs License Agreement. See the file
- * "Silabs_License_Agreement.txt" for details. Before using this software for
- * any purpose, you must agree to the terms of that agreement.
+ * The licensor of this software is Silicon Laboratories Inc. Your use of this
+ * software is governed by the terms of Silicon Labs Master Software License
+ * Agreement (MSLA) available at
+ * www.silabs.com/about-us/legal/master-software-license-agreement. This
+ * software is distributed to you in Source Code format and is governed by the
+ * sections of the MSLA applicable to Source Code.
  *
  ******************************************************************************/
 
@@ -49,12 +52,7 @@
 #undef INCLUDE_PAL_GPIO_PIN_AUTO_TOGGLE
 
 #ifndef FEATURE_IOEXPANDER
-/**
- * Don't define a repeat function for display pal toggle for ECEN5826.  We will handle
- * this pin toggle through timer overflow.
- */
-//#define PAL_TIMER_REPEAT_FUNCTION  (rtcIntCallbackRegister)
-#define POLARITY_INVERSION_EXTCOMIN_MANUAL
+#define PAL_TIMER_REPEAT_FUNCTION  (rtcIntCallbackRegister)
 #endif /* FEATURE_IOEXPANDER */
 
 extern int rtcIntCallbackRegister (void(*pFunction)(void*),

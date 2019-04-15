@@ -1,4 +1,4 @@
-// Copyright 2018 Silicon Laboratories, Inc.
+// Copyright 2019 Silicon Laboratories, Inc.
 //
 //
 
@@ -14,7 +14,17 @@
 extern const struct bg_gattdb_def bg_gattdb_data;
 
 #define gattdb_service_changed_char             3
-#define gattdb_device_name                      7
-#define gattdb_ota_control                     19
+#define gattdb_database_hash                    6
+#define gattdb_client_support_features          8
+#define gattdb_device_name                     11
+#define gattdb_ota_control                     31
+
+typedef enum
+{
+    mesh_provisioning_service      = 0x0001,
+    mesh_proxy_service             = 0x0002,
+    mesh_default                   = 0x0004,
+    bg_gattdb_data_all_caps = 0x0007
+} bg_gattdb_data_cap_t;
 
 #endif

@@ -1,13 +1,19 @@
-/***********************************************************************************************//**
- * \file graphics.h
- * \brief Displays text on the LCD
- ***************************************************************************************************
- * <b> (C) Copyright 2015 Silicon Labs, http://www.silabs.com</b>
- ***************************************************************************************************
- * This file is licensed under the Silabs License Agreement. See the file
- * "Silabs_License_Agreement.txt" for details. Before using this software for
- * any purpose, you must agree to the terms of that agreement.
- **************************************************************************************************/
+/***************************************************************************//**
+ * @file
+ * @brief Displays text on the LCD
+ *******************************************************************************
+ * # License
+ * <b>Copyright 2018 Silicon Laboratories Inc. www.silabs.com</b>
+ *******************************************************************************
+ *
+ * The licensor of this software is Silicon Laboratories Inc. Your use of this
+ * software is governed by the terms of Silicon Labs Master Software License
+ * Agreement (MSLA) available at
+ * www.silabs.com/about-us/legal/master-software-license-agreement. This
+ * software is distributed to you in Source Code format and is governed by the
+ * sections of the MSLA applicable to Source Code.
+ *
+ ******************************************************************************/
 
 #ifndef GRAPHICS_H
 #define GRAPHICS_H
@@ -24,13 +30,13 @@ extern "C" {
  *  \brief  Initializes the graphics stack
  *  \param[in]  header  Header Text on display
  **************************************************************************************************/
-void graphInit(const char* header);
+void graphInit(char* header);
 
 /***********************************************************************************************//**
  *  \brief  display a string on the LCD center aligned
  *  \param[in]  string  String to be displayed
  **************************************************************************************************/
-void graphWriteString(const char *string);
+void graphWriteString(char *string);
 
 #ifdef __cplusplus
 }
