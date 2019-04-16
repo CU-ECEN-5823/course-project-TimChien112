@@ -1,19 +1,13 @@
-/***************************************************************************//**
- * @file
- * @brief Draws the graphics on the display
- *******************************************************************************
- * # License
- * <b>Copyright 2018 Silicon Laboratories Inc. www.silabs.com</b>
- *******************************************************************************
- *
- * The licensor of this software is Silicon Laboratories Inc. Your use of this
- * software is governed by the terms of Silicon Labs Master Software License
- * Agreement (MSLA) available at
- * www.silabs.com/about-us/legal/master-software-license-agreement. This
- * software is distributed to you in Source Code format and is governed by the
- * sections of the MSLA applicable to Source Code.
- *
- ******************************************************************************/
+/***********************************************************************************************//**
+ * \file   graphics.c
+ * \brief  Draws the graphics on the display
+ ***************************************************************************************************
+ * <b> (C) Copyright 2015 Silicon Labs, http://www.silabs.com</b>
+ ***************************************************************************************************
+ * This file is licensed under the Silabs License Agreement. See the file
+ * "Silabs_License_Agreement.txt" for details. Before using this software for
+ * any purpose, you must agree to the terms of that agreement.
+ **************************************************************************************************/
 
 /* standard headers */
 #include <string.h>
@@ -37,17 +31,17 @@ static GLIB_Context_t glibContext;
 /* Current line number stored for printing text */
 static uint8_t graphLineNum = 0;
 /* Device name string */
-static char *deviceHeader = NULL;
+static const char *deviceHeader = NULL;
 
 /***************************************************************************************************
    Static Function Declarations
  **************************************************************************************************/
-static void graphPrintCenter(GLIB_Context_t *pContext, char *pString);
+static void graphPrintCenter(GLIB_Context_t *pContext, const char *pString);
 
 /***************************************************************************************************
    Function Definitions
  **************************************************************************************************/
-void graphInit(char *header)
+void graphInit(const char *header)
 {
   EMSTATUS status;
 
@@ -80,7 +74,7 @@ void graphInit(char *header)
   deviceHeader = header;
 }
 
-void graphWriteString(char *string)
+void graphWriteString(const char *string)
 {
   GLIB_clear(&glibContext);
 
@@ -105,10 +99,10 @@ void graphWriteString(char *string)
  *  \param[in]  pContext  Context
  *  \param[in]  pString  String to be displayed
  **************************************************************************************************/
-static void graphPrintCenter(GLIB_Context_t *pContext, char *pString)
+static void graphPrintCenter(GLIB_Context_t *pContext, const char *pString)
 {
   do {
-    char* nextToken;
+    const char* nextToken;
     uint8_t len;
 
     /* Search for the next important token (new line or terminating NULL) */

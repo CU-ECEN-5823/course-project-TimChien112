@@ -821,7 +821,6 @@ enum gecko_dev_types
 #define gecko_cmd_mesh_test_prov_get_device_key_id                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x23220000)
 #define gecko_cmd_mesh_test_prov_prepare_key_refresh_id               (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x24220000)
 #define gecko_cmd_mesh_test_cancel_segmented_tx_id                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x25220000)
-#define gecko_cmd_mesh_test_set_iv_index_id                           (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x26220000)
 #define gecko_cmd_mesh_lpn_init_id                                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x00230000)
 #define gecko_cmd_mesh_lpn_deinit_id                                  (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x01230000)
 #define gecko_cmd_mesh_lpn_configure_id                               (((uint32)gecko_dev_type_gecko)|gecko_msg_type_cmd|0x02230000)
@@ -1177,7 +1176,6 @@ enum gecko_dev_types
 #define gecko_rsp_mesh_test_prov_get_device_key_id                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x23220000)
 #define gecko_rsp_mesh_test_prov_prepare_key_refresh_id               (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x24220000)
 #define gecko_rsp_mesh_test_cancel_segmented_tx_id                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x25220000)
-#define gecko_rsp_mesh_test_set_iv_index_id                           (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x26220000)
 #define gecko_rsp_mesh_lpn_init_id                                    (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x00230000)
 #define gecko_rsp_mesh_lpn_deinit_id                                  (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x01230000)
 #define gecko_rsp_mesh_lpn_configure_id                               (((uint32)gecko_dev_type_gecko)|gecko_msg_type_rsp|0x02230000)
@@ -4613,14 +4611,6 @@ PACKSTRUCT( struct gecko_msg_mesh_test_cancel_segmented_tx_rsp_t
 {
     uint16              result;
 });
-PACKSTRUCT( struct gecko_msg_mesh_test_set_iv_index_cmd_t
-{
-    uint32              iv_index;
-});
-PACKSTRUCT( struct gecko_msg_mesh_test_set_iv_index_rsp_t
-{
-    uint16              result;
-});
 PACKSTRUCT( struct gecko_msg_mesh_test_local_heartbeat_subscription_complete_evt_t
 {
     uint16              count;
@@ -6626,8 +6616,6 @@ union{
     struct gecko_msg_mesh_test_prov_prepare_key_refresh_rsp_t    rsp_mesh_test_prov_prepare_key_refresh;
     struct gecko_msg_mesh_test_cancel_segmented_tx_cmd_t         cmd_mesh_test_cancel_segmented_tx;
     struct gecko_msg_mesh_test_cancel_segmented_tx_rsp_t         rsp_mesh_test_cancel_segmented_tx;
-    struct gecko_msg_mesh_test_set_iv_index_cmd_t                cmd_mesh_test_set_iv_index;
-    struct gecko_msg_mesh_test_set_iv_index_rsp_t                rsp_mesh_test_set_iv_index;
     struct gecko_msg_mesh_test_local_heartbeat_subscription_complete_evt_t evt_mesh_test_local_heartbeat_subscription_complete;
     struct gecko_msg_mesh_lpn_init_rsp_t                         rsp_mesh_lpn_init;
     struct gecko_msg_mesh_lpn_deinit_rsp_t                       rsp_mesh_lpn_deinit;
@@ -7586,7 +7574,6 @@ void sli_bt_cmd_mesh_test_get_key(const void*);
 void sli_bt_cmd_mesh_test_prov_get_device_key(const void*);
 void sli_bt_cmd_mesh_test_prov_prepare_key_refresh(const void*);
 void sli_bt_cmd_mesh_test_cancel_segmented_tx(const void*);
-void sli_bt_cmd_mesh_test_set_iv_index(const void*);
 void sli_bt_cmd_mesh_lpn_init(const void*);
 void sli_bt_cmd_mesh_lpn_deinit(const void*);
 void sli_bt_cmd_mesh_lpn_configure(const void*);
@@ -16675,29 +16662,6 @@ static inline struct gecko_msg_mesh_test_cancel_segmented_tx_rsp_t* gecko_cmd_me
     sli_bt_cmd_handler_delegate(gecko_cmd_msg->header, sli_bt_cmd_mesh_test_cancel_segmented_tx, &gecko_cmd_msg->data.payload);
     
     return &gecko_rsp_msg->data.rsp_mesh_test_cancel_segmented_tx;
-}
-
-/** 
-*
-* gecko_cmd_mesh_test_set_iv_index
-*
-* Set IV index value of the node.  
-*
-* @param iv_index   IV Index value to use    
-*
-**/
-
-static inline struct gecko_msg_mesh_test_set_iv_index_rsp_t* gecko_cmd_mesh_test_set_iv_index(uint32 iv_index)
-{
-    struct gecko_cmd_packet *gecko_cmd_msg = (struct gecko_cmd_packet *)gecko_cmd_msg_buf;
-    struct gecko_cmd_packet *gecko_rsp_msg = (struct gecko_cmd_packet *)gecko_rsp_msg_buf;
-    
-    gecko_cmd_msg->data.cmd_mesh_test_set_iv_index.iv_index=iv_index;
-    gecko_cmd_msg->header=((gecko_cmd_mesh_test_set_iv_index_id+((4)<<8)));
-    
-    sli_bt_cmd_handler_delegate(gecko_cmd_msg->header, sli_bt_cmd_mesh_test_set_iv_index, &gecko_cmd_msg->data.payload);
-    
-    return &gecko_rsp_msg->data.rsp_mesh_test_set_iv_index;
 }
 
 /** 
