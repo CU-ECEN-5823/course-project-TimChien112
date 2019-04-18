@@ -7,10 +7,9 @@
 
 #include "retargetserial.h"
 #include "log.h"
-#include "scheduler.h"
-#include <stdbool.h>
+#include <stdint.h>
 
-#define LOG_REFRESH_RATE (32768/100)
+
 
 #if INCLUDE_LOGGING
 /**
@@ -19,8 +18,10 @@
  */
 uint32_t loggerGetTimestamp(void)
 {
+
+
 	//return timerGetRunTimeMilliseconds();
-	return tickCount;
+	return 0;
 }
 
 /**
@@ -29,8 +30,6 @@ uint32_t loggerGetTimestamp(void)
  */
 void logInit(void)
 {
-	gecko_cmd_hardware_set_soft_timer(LOG_REFRESH_RATE, LOG_REFRESH, 0);
-
 	RETARGET_SerialInit();
 	/**
 	 * See https://siliconlabs.github.io/Gecko_SDK_Doc/efm32g/html/group__RetargetIo.html#ga9e36c68713259dd181ef349430ba0096
@@ -47,4 +46,30 @@ void logFlush(void)
 {
 	RETARGET_SerialFlush();
 }
+
+// Time stamp parameters
+	#define	stamp_start_flag		0
+	#define	stamp_stop_flag			1
+	uint32_t start_timestamp_tick	= 0;
+	uint32_t end_timestamp_tick		= 0;
+	uint32_t stamp_rollover_times	= 0;
+
+void loggerGetTimestamp_c(uint8_t flag)
+{
+	if (flag == stamp_start_flag) 		// 0 => start
+	{
+		start_timestamp_tick = LETIMER_CounterGet(LETIMER0);
+		stamp_rollover_times = 0;
+	}else if(flag == stamp_stop_flag)	// 1 => stop & log time stamp
+	{
+		end_timestamp_tick   = LETIMER_CounterGet(LETIMER0);
+		uint32_t time_stamp_t = 0;
+		if(stamp_rollover_times !=0) time_stamp_t = (stamp_rollover_times+1)*LETIMER_CompareGet(LETIMER0,0)-(end_timestamp_tick-start_timestamp_tick);
+		else  time_stamp_t = start_timestamp_tick - end_timestamp_tick;
+		uint32_t time_stamp = time_stamp_t * (1000000/1000);
+		//LOG_INFO("stamp_rollover_times %d end_timestamp_tick %d start_timestamp_tick %d\n",stamp_rollover_times,end_timestamp_tick,start_timestamp_tick);
+		LOG_INFO("Timer stamp %d (us) tick %d\n",time_stamp,time_stamp_t);
+	}
+}
+
 #endif

@@ -50,6 +50,12 @@
 #include "src/display.h"
 #include "src/log.h"
 #include "src/gpio.h"
+#include "src/I2C.h"
+#include "src/clock_init.h"
+#include "src/state_machine_params.h"
+#include "src/ble_stack_params.h"
+
+#include "em_core.h"
 
 /***********************************************************************************************//**
  * @addtogroup Application
@@ -85,7 +91,8 @@ extern const struct bg_gattdb_def bg_gattdb_data;
 
 // Flag for indicating DFU Reset must be performed
 uint8_t boot_to_dfu = 0;
-
+uint8_t external_event;
+bool provisioning_complete = 0;
 const gecko_configuration_t config =
 {
   .bluetooth.max_connections = MAX_CONNECTIONS,
@@ -237,9 +244,15 @@ void gecko_main_init()
   // Initialize application
   initApp();
 
-  displayInit();
   gpioInit();
-
+//Initialize timer, clock & Oscillator
+  Clock_Init();
+//Initialize I2C
+  i2c_Init();
+//Initialize LCD
+  displayInit();
+//Log
+  logFlush();
   // Minimize advertisement latency by allowing the advertiser to always
   // interrupt the scanner.
   linklayer_priorities.scan_max = linklayer_priorities.adv_min + 1;
@@ -305,18 +318,19 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	break;
 
     case gecko_evt_mesh_node_provisioned_id:
-    		mesh_lib_init(malloc,free,9);
-    		init_models();
-    		gecko_cmd_mesh_generic_server_init();
-    		//for friend functionality
-    		LOG_INFO("Friend mode initialization");
-    		uint16 res;
-    		res = gecko_cmd_mesh_friend_init()->result;
-    		if (res) {
-    			LOG_INFO("Friend init failed 0x%x", res);
-    		}
-    		LOG_INFO("node is provisioned");
-    		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
+		mesh_lib_init(malloc,free,9);
+		init_models();
+		gecko_cmd_mesh_generic_server_init();
+		//for friend functionality
+		LOG_INFO("Friend mode initialization");
+		uint16 res;
+		res = gecko_cmd_mesh_friend_init()->result;
+		if (res) {
+			LOG_INFO("Friend init failed 0x%x", res);
+		}
+		LOG_INFO("node is provisioned");
+		provisioning_complete = 1;
+		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
     	break;
 
     case gecko_evt_mesh_node_provisioning_failed_id:
@@ -324,6 +338,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	displayPrintf(DISPLAY_ROW_ACTION, "Provisioning Failed");
     	/* start a one-shot timer that will trigger soft reset after small delay of 2 seconds*/
     	gecko_cmd_hardware_set_soft_timer(32768*2, TIMER_ID_RESTART, 1);
+    	provisioning_complete = 0;
     	break;
 
 
@@ -389,7 +404,16 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
           break;
 
 	case gecko_evt_system_external_signal_id:
-		LOG_INFO("in server external signal id");
+		//LOG_INFO("in server external signal id %d",evt->data.evt_system_external_signal.extsignals);
+		if((evt->data.evt_system_external_signal.extsignals & TEMPREAD_FLAG))
+		{
+			CORE_CRITICAL_SECTION(
+					external_event &= ~TEMPREAD_FLAG;
+			)
+			if(provisioning_complete) {
+				state_machine();
+			}
+		}
 		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
 		{
 			struct mesh_generic_state sta;
