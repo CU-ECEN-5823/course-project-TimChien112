@@ -13,6 +13,8 @@
 #define GPIO_DISPLAY_SUPPORT_IMPLEMENTED		1
 
 void gpioInit();
+void GPIO_ODD_IRQHandler(void);
+void GPIO_EVEN_IRQHandler(void);
 void gpioLed0SetOn();
 void gpioLed0SetOff();
 void gpioLed1SetOn();

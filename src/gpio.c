@@ -7,6 +7,8 @@
 #include "gpio.h"
 #include "em_gpio.h"
 #include <string.h>
+#include "scheduler.h"
+#include "log.h"
 
 
 /**
@@ -30,6 +32,7 @@ void gpioInit()
 	GPIO_DriveStrengthSet(LED1_port, gpioDriveStrengthWeakAlternateWeak);
 	GPIO_PinModeSet(LED1_port, LED1_pin, gpioModePushPull, false);
 
+	GPIOINT_Init();
 	// for PB0
 	GPIO_PinModeSet(gpioPortF, 6, gpioModeInputPull, 1);
 	GPIO_IntConfig(gpioPortF,6,1,1,1);
@@ -37,6 +40,25 @@ void gpioInit()
 	// for PB1
 	GPIO_PinModeSet(gpioPortF, 7, gpioModeInputPull, 1);
 	GPIO_IntConfig(gpioPortF,7,1,1,1);
+
+	// for presence detector
+	GPIO_PinModeSet(gpioPortF, 2, gpioModeInputPull, 1);
+	GPIO_IntConfig(gpioPortF,2,1,1,1);
+}
+
+void GPIO_EVEN_IRQHandler(void)
+{
+	LOG_INFO("EVEN here!");
+	uint32_t reason = GPIO_IntGet();
+	GPIO_IntClear(reason);
+	gecko_external_signal(PUSHBUTTON_FLAG);
+}
+void GPIO_ODD_IRQHandler(void)
+{
+	LOG_INFO("ODD here!");
+	uint32_t reason = GPIO_IntGet();
+	GPIO_IntClear(reason);
+	gecko_external_signal(PUSHBUTTON_FLAG);
 }
 
 void gpioLed0SetOn()

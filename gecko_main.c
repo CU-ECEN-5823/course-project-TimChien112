@@ -246,7 +246,7 @@ void gecko_main_init()
 
   gpioInit();
 //Initialize timer, clock & Oscillator
-  Clock_Init();
+  if(DeviceUsesServerModel())Clock_Init();
 //Initialize I2C
   i2c_Init();
 //Initialize LCD
