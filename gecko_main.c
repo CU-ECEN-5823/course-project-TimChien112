@@ -417,14 +417,41 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 		}
 		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
 		{
+			struct mesh_generic_state sta;
+			struct mesh_generic_request req;
+			uint16_t resp;
+			uint8_t transition = 0;
+			uint8_t delay = 0;
+			sta.kind = mesh_generic_state_pb0_press_release;
+
+
+			trid++;
+
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
+//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
+				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
+				req.kind = mesh_generic_request_pb0_press_release;
+				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
+//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
+				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
+				req.kind = mesh_generic_request_pb0_press_release;
+				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
 				LOG_INFO("pressed");
 			}
+
+			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0xffff, trid, &req, transition, delay, 0);
+
+			if (resp) {
+				LOG_INFO("publish fail");
+			} else {
+				LOG_INFO("Transaction ID = %u", trid);
+			}
+		}
 		break;
 
 	case gecko_evt_mesh_node_reset_id:
@@ -498,6 +525,7 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     		mesh_lib_init(malloc,free,8);
     		gecko_cmd_mesh_generic_client_init();
     		lpn_init();
+
     		LOG_INFO("node is provisioned");
     		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
     	break;
