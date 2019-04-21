@@ -5,8 +5,8 @@ course-project-TimChien112 created by GitHub Classroom
                         Mesh based Smart Home (Home Automation)
 This project is developed as final project for the course ECEN 5823.
 
- Authors: santhosh Thummanapalli 
-         Tim chien
+ Authors: 	santhosh Thummanapalli 
+			Tim chien
 
  This Project aims at developing a secure mesh based smart home. This project tries to implement a low power smart fire alert system, smart lighting control system and app for updating these values using Bluetooth mesh.
 
@@ -22,9 +22,9 @@ This project is developed as final project for the course ECEN 5823.
 						3. Proxy Node.
 							
 
- Sensors used 1. MAX3010 Particle sensor for smoke detection 
-             2. APDS 9301 Ambient light sensor for light intensity detection 
-             3. 5mm IR break out board.
+ Sensors used 	1. MAX3010 Particle sensor for smoke detection 
+				2. APDS 9301 Ambient light sensor for light intensity detection 
+				3. 5mm IR break out board.
 			 
 4-20 process update:
 	Complete the friendship between LPN and Friend.
