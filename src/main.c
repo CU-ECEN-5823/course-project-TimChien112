@@ -15,6 +15,7 @@ int main(void)
 
   logInit();
   bool device_type = DeviceUsesClientModel();
+  ambient_light_init();
   /* Infinite loop */
   while (1) {
 	struct gecko_cmd_packet *evt = gecko_wait_event();

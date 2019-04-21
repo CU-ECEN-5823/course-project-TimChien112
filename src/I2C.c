@@ -51,17 +51,17 @@ void i2c_Init(void)
 	seq.addr = device_address<<1;
 }
 
-void I2C0_IRQHandler(void)
-{
-	I2C_TransferReturn_TypeDef ret = I2C_Transfer(I2C0);
-
-	if(ret == i2cTransferDone)
-		{
-			event |= I2C_TRANSFER_COMPLETE;
-		}
-	else if(ret != i2cTransferInProgress)
-		{
-			LOG_ERROR("I2C Error %d",ret);
-			event |= I2C_TRANSFER_ERROR;
-		}
-}
+//void I2C0_IRQHandler(void)
+//{
+//	I2C_TransferReturn_TypeDef ret = I2C_Transfer(I2C0);
+//
+//	if(ret == i2cTransferDone)
+//		{
+//			event |= I2C_TRANSFER_COMPLETE;
+//		}
+//	else if(ret != i2cTransferInProgress)
+//		{
+//			LOG_ERROR("I2C Error %d",ret);
+//			event |= I2C_TRANSFER_ERROR;
+//		}
+//}
