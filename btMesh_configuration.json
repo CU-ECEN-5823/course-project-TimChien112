@@ -10,24 +10,40 @@
       {
         "Name": "Primary Element",
         "Loc": "0x0000",
-        "NumS": "3",
-        "NumV": "0",
+        "NumS": "7",
+        "NumV": "4",
         "SIG Models": [
-          "0x0000",
+          "0",
           "Configuration Server",
-          "0x1001",
+          "1000",
+          "Generic OnOff Server",
+          "100b",
+          "Generic Power Level Client",
+          "1009",
+          "Generic Power Level Server",
+          "1001",
           "Generic OnOff Client",
-          "0x1000",
-          "Generic OnOff Server"]
+          "1002",
+          "Generic Level Server",
+          "1003",
+          "Generic Level Client"]
         ,
         "Vendor Models": [
-          ]
+          "0x11111111",
+          "Smoke Server Model",
+          "0x22221111",
+          "Smoke Client Model",
+          "0x11112222",
+          "Brightness Server Model",
+          "0x22222222",
+          "Brightness Client Model"]
+        
       }]
     
   },
   "Memory configuration": {
     "MAX_ELEMENTS": "1",
-    "MAX_MODELS": "3",
+    "MAX_MODELS": "11",
     "MAX_APP_BINDS": "4",
     "MAX_SUBSCRIPTIONS": "4",
     "MAX_NETKEYS": "4",

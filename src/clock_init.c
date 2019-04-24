@@ -2,9 +2,9 @@
 #include "em_cmu.h"
 #include "sleep.h"
 #include "em_letimer.h"
-#include "state_machine_params.h"
+#include "src/temperature_sensor/state_machine_params.h"
 #include "log.h"
-#include "wait_funct.h"
+#include "src/wait_funct/wait_funct.h"
 
 extern uint8_t external_event;
 // parameters for Clock & sleep mode

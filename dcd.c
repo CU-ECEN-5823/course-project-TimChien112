@@ -32,14 +32,22 @@ const uint8_t __mesh_dcd[] = {
     0x0f, 0x00, /* Features Bitmask = 0x000f */
     /* Begin Primary Element */
         0x00, 0x00, /* Location = 0x0000 */
-        0x03, /* Number of SIG Models = 0x03 */
-        0x00, /* Number of Vendor Models = 0x00 */
+        0x07, /* Number of SIG Models = 0x07 */
+        0x04, /* Number of Vendor Models = 0x04 */
         /* Begin SIG Models */
         0x00, 0x00, /* Configuration Server */
-        0x01, 0x10, /* Generic OnOff Client */
         0x00, 0x10, /* Generic OnOff Server */
+		0x01, 0x10, /* Generic OnOff Client */
+        0x0b, 0x10, /* Brightness Level Client */
+        0x09, 0x10, /* Brightness Level Server */
+        0x02, 0x10, /* Smoke Level Server */
+        0x03, 0x10, /* Smoke Level Client */
         /* End SIG Models */
         /* Begin Vendor Models */
+        0x11, 0x11, 0x11, 0x11, /* Smoke Server Model */
+        0x11, 0x11, 0x22, 0x22, /* Smoke Client Model */
+        0x22, 0x22, 0x11, 0x11, /* Brightness Server Model */
+        0x22, 0x22, 0x22, 0x22, /* Brightness Client Model */
         /* End Vendor Models */
     /* End Primary Element */
 };

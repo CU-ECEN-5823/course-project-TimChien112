@@ -46,13 +46,13 @@
 #endif
 #include "src/ble_mesh_device_type.h"
 
-#include "src/scheduler.h"
+#include "src/common.h"
 #include "src/display.h"
 #include "src/log.h"
 #include "src/gpio.h"
-#include "src/I2C.h"
+#include "src/I2C/I2C.h"
 #include "src/clock_init.h"
-#include "src/state_machine_params.h"
+#include "src/temperature_sensor/state_machine_params.h"
 #include "src/ble_stack_params.h"
 
 #include "em_core.h"
@@ -145,7 +145,7 @@ void lpn_init(void)
 	res = gecko_cmd_mesh_lpn_establish_friendship(0)->result;
 
 	if (res != 0) {
-		LOG_INFO("ret.code %x", res);
+		LOG_INFO("ret %x", res);
 	}
 }
 
@@ -219,9 +219,9 @@ void set_device_name(bd_addr *pAddr)
   uint16 res;
 
 #if DEVICE_IS_ONOFF_PUBLISHER
-  sprintf(name, "5823PUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "PUBLISH %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #else
-  sprintf(name, "5823SUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "SUBSCRIBER %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #endif
 
   // write device name to the GATT database
@@ -298,7 +298,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     		init_models();
     		gecko_cmd_mesh_generic_server_init();
     		//for friend functionality
-    		LOG_INFO("Friend mode initialization");
+    		LOG_INFO("Friendship initialization");
     		uint16 res;
     		res = gecko_cmd_mesh_friend_init()->result;
     		if (res) {
@@ -356,6 +356,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	break;
 
     case gecko_evt_hardware_soft_timer_id:
+
     	switch (evt->data.evt_hardware_soft_timer.handle) {
     		case DISPLAY_REFRESH:
     			displayUpdate();
@@ -405,7 +406,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
           break;
 
 	case gecko_evt_system_external_signal_id:
-		//LOG_INFO("in server external signal id %d",evt->data.evt_system_external_signal.extsignals);
+
 		if((evt->data.evt_system_external_signal.extsignals & TEMPREAD_FLAG))
 		{
 			CORE_CRITICAL_SECTION(
@@ -415,47 +416,46 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 				state_machine();
 			}
 		}
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
+//		if ((evt->data.evt_system_external_signal.extsignals & PRESENCE_FLAG) != 0)
+//		{
+//			CORE_CRITICAL_SECTION(
+//				external_event &= ~PRESENCE_FLAG;
+//			)
+//			LOG_INFO("presence state change");
+//		}
+		if ((evt->data.evt_system_external_signal.extsignals & BP1_FLAG) != 0)
 		{
-			struct mesh_generic_state sta;
-			struct mesh_generic_request req;
-			uint16_t resp;
-			uint8_t transition = 0;
-			uint8_t delay = 0;
-			sta.kind = mesh_generic_state_pb0_press_release;
-
-
-			trid++;
-
+			CORE_CRITICAL_SECTION(
+				external_event &= ~BP1_FLAG;
+			)
+			LOG_INFO("BP1 : %d",GPIO_PinInGet(gpioPortF,7));
+			if(GPIO_PinInGet(gpioPortF,7) == 1)
+			{
+				LOG_INFO("BP1_released");
+			}
+			else if(GPIO_PinInGet(gpioPortF,7) == 0)
+			{
+				LOG_INFO("BP1_pressed");
+			}
+		}
+		if ((evt->data.evt_system_external_signal.extsignals & BP0_FLAG) != 0)
+		{
+			CORE_CRITICAL_SECTION(
+				external_event &= ~BP0_FLAG;
+			)
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				LOG_INFO("released");
+				LOG_INFO("BP0_released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				LOG_INFO("pressed");
-			}
-
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0xffff, trid, &req, transition, delay, 0);
-
-			if (resp) {
-				LOG_INFO("publish fail");
-			} else {
-				LOG_INFO("Transaction ID = %u", trid);
+				LOG_INFO("BP0_pressed");
 			}
 		}
 		break;
 
 	case gecko_evt_mesh_node_reset_id:
-		LOG_INFO("in mesh node reset id");
+		LOG_INFO("mesh node reset");
 		gecko_cmd_flash_ps_erase_all();
 		// reset mesh node
 		gecko_cmd_hardware_set_soft_timer(32768*2, TIMER_ID_RESTART, 1);
@@ -522,12 +522,11 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	break;
 
     case gecko_evt_mesh_node_provisioned_id:
-    		mesh_lib_init(malloc,free,8);
-    		gecko_cmd_mesh_generic_client_init();
-    		lpn_init();
-
-    		LOG_INFO("node is provisioned");
-    		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
+		mesh_lib_init(malloc,free,8);
+		gecko_cmd_mesh_generic_client_init();
+		lpn_init();
+		LOG_INFO("node is provisioned");
+		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
     	break;
 
     case gecko_evt_mesh_node_provisioning_failed_id:
@@ -562,7 +561,7 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     			uint16_t result;
     			result = gecko_cmd_mesh_lpn_establish_friendship(0)->result;
     			if (result != 0) {
-    				LOG_INFO("ret.code %x", result);
+    				LOG_INFO("ret %x", result);
     			}
     		}
     		break;
@@ -573,7 +572,6 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 		LOG_INFO("in connection opened id");
 		displayPrintf(DISPLAY_ROW_CONNECTION, "Connected");
 		num_connections++;
-		// turn off lpn feature after GATT connection is opened
 		gecko_cmd_mesh_lpn_deinit();
 		displayPrintf(DISPLAY_ROW_LPN, "LPN off");
 		break;
@@ -609,42 +607,74 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	LOG_INFO("friendship terminated");
     	displayPrintf(DISPLAY_ROW_LPN, "friend lost");
     	if (num_connections == 0) {
-    		// try again in 2 seconds
     		gecko_cmd_hardware_set_soft_timer(2 * 32768, TIMER_ID_FRIEND_FIND, 1);
     	}
     	break;
 
 	case gecko_evt_system_external_signal_id:
 		LOG_INFO("in external signal id");
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
-		{
-			struct mesh_generic_request req;
-			uint16_t resp;
-			uint8_t transition = 0;
-			uint8_t delay = 0;
-			req.kind = mesh_generic_request_pb0_press_release;
-			trid++;
+		struct mesh_generic_request req;
+		uint16_t resp;
+		uint8_t transition = 0;
+		uint8_t delay = 0;
+		uint8_t publich_id = 0;
 
+		if ((evt->data.evt_system_external_signal.extsignals & BR_FLAG) != 0)
+			{
+				trid++;
+				req.kind = request_brightness;
+				publich_id = BRIGHTNESS_LPN_MODEL_ID;
+
+				req.brightness_level = BR_GetLevel();
+
+			}
+		if ((evt->data.evt_system_external_signal.extsignals & SM_FLAG) != 0)
+			{
+				trid++;
+				req.kind = request_smoke;
+				publich_id = SMOKE_LPN_MODEL_ID;
+
+				req.smoke_levle = SM_GetLevel();
+			}
+		if ((evt->data.evt_system_external_signal.extsignals & BP1_FLAG) != 0)
+		{
+			trid++;
+			req.kind = request_button_state;
+			publich_id = BUTTON_LPN_MODEL_ID;
+			if(GPIO_PinInGet(gpioPortF,7) == 1)
+			{
+				req.button_state = PB1_PRESS;
+				LOG_INFO("BP1_pressed");
+			}
+			else if(GPIO_PinInGet(gpioPortF,7) == 0)
+			{
+				req.button_state = PB1_RELEASE;
+				LOG_INFO("BP1_released");
+			}
+		}
+		if ((evt->data.evt_system_external_signal.extsignals & BP0_FLAG) != 0)
+		{
+			trid++;
+			req.kind = request_button_state;
+			publich_id = BUTTON_LPN_MODEL_ID;
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				LOG_INFO("released");
+				req.button_state = PB0_PRESS;
+				LOG_INFO("BP0_pressed");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				LOG_INFO("pressed");
+				req.button_state = PB0_RELEASE;
+				LOG_INFO("BP0_released");
 			}
 
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0, trid, &req, transition, delay, 0);
+		}
+		resp = mesh_lib_generic_client_publish(publich_id, 0, trid, &req, transition, delay, 0);
 
-			if (resp) {
-				LOG_INFO("publish fail");
-			} else {
-				LOG_INFO("Transaction ID = %u", trid);
-			}
+		if (resp) {
+			LOG_INFO("publish fail");
+		} else {
+			LOG_INFO("Transaction ID = %u", trid);
 		}
 		break;
 
@@ -676,13 +706,67 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 static void init_models(void)
 {
 	LOG_INFO("init model here!\n");
-	mesh_lib_generic_server_register_handler(MESH_GENERIC_PB0_PRESS_RELEASE_SERVER_MODEL_ID,
+	mesh_lib_generic_server_register_handler(BUTTON_FRIEND_MODEL_ID,
 												0,
-												pb0_pressrelease_request,
-												pb0_pressrelease_change);
+												pb_request,
+												pb_change);
+	mesh_lib_generic_server_register_handler(SMOKE_FRIEND_MODEL_ID,
+												0,
+												SM_request,
+												SM_change);
+	mesh_lib_generic_server_register_handler(BRIGHTNESS_FRIEND_MODEL_ID,
+												0,
+												BR_request,
+												BR_change);
 }
 
-static void pb0_pressrelease_request(uint16_t model_id,
+static void BR_request(uint16_t model_id,
+                          uint16_t element_index,
+                          uint16_t client_addr,
+                          uint16_t server_addr,
+                          uint16_t appkey_index,
+                          const struct mesh_generic_request *request,
+                          uint32_t transition_ms,
+                          uint16_t delay_ms,
+                          uint8_t request_flags)
+{
+	LOG_INFO("Brightness request here!\n");
+	displayPrintf(7, "BR: %d",request->smoke_levle);
+
+}
+static void BR_change(uint16_t model_id,
+                         uint16_t element_index,
+                         const struct mesh_generic_state *current,
+                         const struct mesh_generic_state *target,
+                         uint32_t remaining_ms)
+{
+	LOG_INFO("smoke level Changed");
+}
+
+static void SM_request(uint16_t model_id,
+                          uint16_t element_index,
+                          uint16_t client_addr,
+                          uint16_t server_addr,
+                          uint16_t appkey_index,
+                          const struct mesh_generic_request *request,
+                          uint32_t transition_ms,
+                          uint16_t delay_ms,
+                          uint8_t request_flags)
+{
+	LOG_INFO("Smoke request here!\n");
+	displayPrintf(8, "SM: %d",request->brightness_level);
+
+}
+static void SM_change(uint16_t model_id,
+                         uint16_t element_index,
+                         const struct mesh_generic_state *current,
+                         const struct mesh_generic_state *target,
+                         uint32_t remaining_ms)
+{
+	LOG_INFO("smoke level Changed");
+}
+
+static void pb_request(uint16_t model_id,
                           uint16_t element_index,
                           uint16_t client_addr,
                           uint16_t server_addr,
@@ -693,17 +777,21 @@ static void pb0_pressrelease_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("request here!\n");
-	if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Released");
-	else if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Pressed");
+	if(request->button_state == PB0_RELEASE)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 0 Released");
+	else if(request->button_state == PB0_PRESS)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 0 Pressed");
+	else if(request->button_state == PB1_RELEASE)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 1 Released");
+	else if(request->button_state == PB1_PRESS)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 1 Pressed");
 }
 
-static void pb0_pressrelease_change(uint16_t model_id,
+static void pb_change(uint16_t model_id,
                          uint16_t element_index,
                          const struct mesh_generic_state *current,
                          const struct mesh_generic_state *target,
                          uint32_t remaining_ms)
 {
-	LOG_INFO("PB0 State Changed");
+	LOG_INFO("PB State Changed");
 }

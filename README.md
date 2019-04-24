@@ -26,8 +26,15 @@ This project is developed as final project for the course ECEN 5823.
 				2. APDS 9301 Ambient light sensor for light intensity detection 
 				3. 5mm IR break out board.
 			 
-4-20 process update:
+4-20 update:
 	Complete the friendship between LPN and Friend.
 	Can publish the request from LPN to friend for button state changing.
 	Enable the GPIO interrupt for IR Beam sensor interrupt.
 	Start working on the I2C communication for light ambient sensor.
+
+4-23 update:
+	Add provisionr code (add SIG models for smoke and brightness)	error: just can add one model. when I add two models, appkey bind will fail.
+	Add mesh communication code for friend node
+	Add mesh communication code for LPN
+	
+	
