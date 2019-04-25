@@ -54,9 +54,10 @@
 #include "src/clock_init.h"
 #include "src/state_machine_params.h"
 #include "src/ble_stack_params.h"
-
+#include "src/gecko_ble_errors.h"
 #include "em_core.h"
-
+#include "mesh_generic_model_capi_types.h"
+#include "src/mesh_custom_model_map.h"
 /***********************************************************************************************//**
  * @addtogroup Application
  * @{
@@ -600,29 +601,28 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 			trid++;
 
 		//TEST brightness model with button 1 4/24 Tim
-			//req.kind = brightness_request;
+			req.kind = brightness_request;
 		//TEST brightness model with button 1 4/24 Tim
-			req.kind = smoke_request;
 			if(GPIO_PinInGet(gpioPortF,7) == 1)
 			{
-//				req.brightness_level = 0;
-				req.smoke_level = 0;
+				req.brightness_level = 0;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,7) == 0)
 			{
-//				req.brightness_level = 1;
-				req.smoke_level = 1;
+				req.brightness_level = 1;
 				LOG_INFO("pressed");
 			}
-			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
-//			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
-
+//			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			BTSTACK_LOG_RESULT(mesh_lib_generic_client_publish,resp);
+/*
 			if (resp) {
 				LOG_INFO("publish fail");
 			} else {
 				LOG_INFO("Transaction ID = %u", trid);
 			}
+			*/
 		}
 
 		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
@@ -738,7 +738,7 @@ static void br_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("BR request here!\n");
-	displayPrintf(DISPLAY_ROW_ACTION, "BR : %d",request->brightness_level);
+	displayPrintf(DISPLAY_ROW_ACTION, "BR : %d",request->level);
 }
 
 static void br_change(uint16_t model_id,
@@ -760,7 +760,7 @@ static void sm_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("SM request here!\n");
-	displayPrintf(DISPLAY_ROW_ACTION, "SM : %d",request->smoke_level);
+	displayPrintf(DISPLAY_ROW_ACTION, "SM : %d",request->level);
 }
 
 static void sm_change(uint16_t model_id,
