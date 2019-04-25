@@ -1107,11 +1107,11 @@ int mesh_lib_serialize_request(const struct mesh_generic_request *req,
   size_t msg_off = 0;
 
   switch (req->kind) {
-    case mesh_generic_request_pb0_press_release:
+    case button_request:
       if (msg_len < 1) {
         return -1;
       }
-      msg_buf[msg_off++] = req->pb0_press_release;
+      msg_buf[msg_off++] = req->button_state;
       *msg_used = msg_off;
       break;
   }
@@ -1127,12 +1127,12 @@ int mesh_lib_deserialize_request(struct mesh_generic_request *req,
   size_t msg_off = 0;
 
   switch (kind) {
-    case mesh_generic_request_pb0_press_release:
+    case button_request:
       if (msg_len - msg_off != 1) {
         return -1;
       }
       req->kind = kind;
-      req->pb0_press_release = msg_buf[msg_off];
+      req->button_state = msg_buf[msg_off];
       break;
   }
 

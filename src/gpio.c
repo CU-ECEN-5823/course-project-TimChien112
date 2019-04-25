@@ -51,14 +51,14 @@ void GPIO_EVEN_IRQHandler(void)
 	LOG_INFO("EVEN here!");
 	uint32_t reason = GPIO_IntGet();
 	GPIO_IntClear(reason);
-	gecko_external_signal(PUSHBUTTON_FLAG);
+	gecko_external_signal(BUTTON0_FLAG);
 }
 void GPIO_ODD_IRQHandler(void)
 {
 	LOG_INFO("ODD here!");
 	uint32_t reason = GPIO_IntGet();
 	GPIO_IntClear(reason);
-	gecko_external_signal(PUSHBUTTON_FLAG);
+	gecko_external_signal(BUTTON1_FLAG);
 }
 
 void gpioLed0SetOn()

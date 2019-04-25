@@ -415,42 +415,17 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 				state_machine();
 			}
 		}
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
 		{
-			struct mesh_generic_state sta;
-			struct mesh_generic_request req;
-			uint16_t resp;
-			uint8_t transition = 0;
-			uint8_t delay = 0;
-			sta.kind = mesh_generic_state_pb0_press_release;
-
-
-			trid++;
-
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
 				LOG_INFO("pressed");
 			}
 
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0xffff, trid, &req, transition, delay, 0);
-
-			if (resp) {
-				LOG_INFO("publish fail");
-			} else {
-				LOG_INFO("Transaction ID = %u", trid);
-			}
 		}
 		break;
 
@@ -616,29 +591,62 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 
 	case gecko_evt_system_external_signal_id:
 		LOG_INFO("in external signal id");
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON1_FLAG) != 0)
+				{
+			struct mesh_generic_request req;
+			uint16_t resp;
+			uint8_t transition = 0;
+			uint8_t delay = 0;
+			trid++;
+
+		//TEST brightness model with button 1 4/24 Tim
+			//req.kind = brightness_request;
+		//TEST brightness model with button 1 4/24 Tim
+			req.kind = smoke_request;
+			if(GPIO_PinInGet(gpioPortF,7) == 1)
+			{
+//				req.brightness_level = 0;
+				req.smoke_level = 0;
+				LOG_INFO("released");
+			}
+			else if(GPIO_PinInGet(gpioPortF,7) == 0)
+			{
+//				req.brightness_level = 1;
+				req.smoke_level = 1;
+				LOG_INFO("pressed");
+			}
+			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+//			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+
+			if (resp) {
+				LOG_INFO("publish fail");
+			} else {
+				LOG_INFO("Transaction ID = %u", trid);
+			}
+		}
+
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
 		{
 			struct mesh_generic_request req;
 			uint16_t resp;
 			uint8_t transition = 0;
 			uint8_t delay = 0;
-			req.kind = mesh_generic_request_pb0_press_release;
+			req.kind = button_request;
 			trid++;
 
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
+				req.button_state = BUTTON_0_RELEASE;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
+				req.button_state = BUTTON_0_PRESS;
 				LOG_INFO("pressed");
 			}
 
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0, trid, &req, transition, delay, 0);
+
+			resp = mesh_lib_generic_client_publish(BUTTON_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
 
 			if (resp) {
 				LOG_INFO("publish fail");
@@ -676,13 +684,21 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 static void init_models(void)
 {
 	LOG_INFO("init model here!\n");
-	mesh_lib_generic_server_register_handler(MESH_GENERIC_PB0_PRESS_RELEASE_SERVER_MODEL_ID,
+	mesh_lib_generic_server_register_handler(BUTTON_FRIEND_MODEL_ID,
 												0,
-												pb0_pressrelease_request,
-												pb0_pressrelease_change);
+												pb_request,
+												pb_change);
+	mesh_lib_generic_server_register_handler(BRIGHTNESS_FRIEND_MODEL_ID,
+												0,
+												br_request,
+												br_change);
+	mesh_lib_generic_server_register_handler(SMOKE_FRIEND_MODEL_ID,
+												0,
+												sm_request,
+												sm_change);
 }
 
-static void pb0_pressrelease_request(uint16_t model_id,
+static void pb_request(uint16_t model_id,
                           uint16_t element_index,
                           uint16_t client_addr,
                           uint16_t server_addr,
@@ -693,17 +709,65 @@ static void pb0_pressrelease_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("request here!\n");
-	if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Released");
-	else if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Pressed");
+	if(request->button_state == BUTTON_0_RELEASE)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 0 Released");
+	else if(request->button_state == BUTTON_0_PRESS)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 0 Pressed");
+	if(request->button_state == BUTTON_1_RELEASE)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 1 Released");
+	else if(request->button_state == BUTTON_1_PRESS)
+		displayPrintf(DISPLAY_ROW_ACTION, "Button 1 Pressed");
 }
 
-static void pb0_pressrelease_change(uint16_t model_id,
+static void pb_change(uint16_t model_id,
                          uint16_t element_index,
                          const struct mesh_generic_state *current,
                          const struct mesh_generic_state *target,
                          uint32_t remaining_ms)
 {
 	LOG_INFO("PB0 State Changed");
+}
+static void br_request(uint16_t model_id,
+                          uint16_t element_index,
+                          uint16_t client_addr,
+                          uint16_t server_addr,
+                          uint16_t appkey_index,
+                          const struct mesh_generic_request *request,
+                          uint32_t transition_ms,
+                          uint16_t delay_ms,
+                          uint8_t request_flags)
+{
+	LOG_INFO("BR request here!\n");
+	displayPrintf(DISPLAY_ROW_ACTION, "BR : %d",request->brightness_level);
+}
+
+static void br_change(uint16_t model_id,
+                         uint16_t element_index,
+                         const struct mesh_generic_state *current,
+                         const struct mesh_generic_state *target,
+                         uint32_t remaining_ms)
+{
+	LOG_INFO("BR State Changed");
+}
+static void sm_request(uint16_t model_id,
+                          uint16_t element_index,
+                          uint16_t client_addr,
+                          uint16_t server_addr,
+                          uint16_t appkey_index,
+                          const struct mesh_generic_request *request,
+                          uint32_t transition_ms,
+                          uint16_t delay_ms,
+                          uint8_t request_flags)
+{
+	LOG_INFO("SM request here!\n");
+	displayPrintf(DISPLAY_ROW_ACTION, "SM : %d",request->smoke_level);
+}
+
+static void sm_change(uint16_t model_id,
+                         uint16_t element_index,
+                         const struct mesh_generic_state *current,
+                         const struct mesh_generic_state *target,
+                         uint32_t remaining_ms)
+{
+	LOG_INFO("SM State Changed");
 }

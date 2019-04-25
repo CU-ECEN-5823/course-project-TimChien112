@@ -553,14 +553,22 @@
 
 // customized models for push button
 // will be implemented for sensor in future
-#define MESH_GENERIC_PB0_PRESS_RELEASE_SERVER_MODEL_ID      0x1000
-#define MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID		0x1001
+#define BUTTON_FRIEND_MODEL_ID      						0x1000
+#define BUTTON_LPN_MODEL_ID									0x1001
+#define BRIGHTNESS_FRIEND_MODEL_ID      					0x1300
+#define BRIGHTNESS_LPN_MODEL_ID								0x1302
+#define SMOKE_FRIEND_MODEL_ID      							0x1002
+#define SMOKE_LPN_MODEL_ID									0x1003
 
-#define MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE 		0x00
-#define MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS 			0x01
+#define BUTTON_0_RELEASE 									0x00
+#define BUTTON_0_PRESS 										0x01
+#define BUTTON_1_RELEASE 									0x02
+#define BUTTON_1_PRESS 										0x03
 
 typedef enum {
 	mesh_generic_state_pb0_press_release = 0x00,
+	brightness_state = 0x01,
+	smoke_state = 0x02,
 } mesh_generic_state_t;
 
 struct mesh_generic_state {
@@ -568,18 +576,24 @@ struct mesh_generic_state {
 
   union {
     uint8_t pb0_press_release;
+    uint16_t brightness_level;
+    uint16_t smoke_level;
   };
 };
 
 typedef enum {
-	mesh_generic_request_pb0_press_release = 0x00,
+	button_request = 0x00,
+	brightness_request = 0x01,
+	smoke_request = 0x02,
 } mesh_generic_request_t;
 
 struct mesh_generic_request {
   mesh_generic_request_t kind;
 
   union {
-    uint8_t pb0_press_release;
+    uint8_t 	button_state;
+    uint16_t 	brightness_level;
+    uint16_t 	smoke_level;
   };
 };
 
