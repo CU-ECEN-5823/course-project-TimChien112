@@ -605,12 +605,12 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 		//TEST brightness model with button 1 4/24 Tim
 			if(GPIO_PinInGet(gpioPortF,7) == 1)
 			{
-				req.brightness_level = 0;
+				req.brightness_level = 2000;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,7) == 0)
 			{
-				req.brightness_level = 1;
+				req.brightness_level = 3000;
 				LOG_INFO("pressed");
 			}
 //			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
