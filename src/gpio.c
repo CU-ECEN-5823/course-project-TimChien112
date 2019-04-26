@@ -7,19 +7,20 @@
 #include "gpio.h"
 #include "em_gpio.h"
 #include <string.h>
-#include "scheduler.h"
-#include "log.h"
+#include "presence_sensor/presence_sensor.h"
 
 
 /**
  * TODO: define these.  See the radio board user guide at https://www.silabs.com/documents/login/user-guides/ug279-brd4104a-user-guide.pdf
  * and GPIO documentation at https://siliconlabs.github.io/Gecko_SDK_Doc/efm32g/html/group__GPIO.html
  */
+
 #define gpioPortF	5		  // Port F
 #define	LED0_port 	gpioPortF //PF4
 #define LED0_pin	4
 #define LED1_port	gpioPortF //PF5
 #define LED1_pin	5
+
 
 
 
@@ -42,23 +43,46 @@ void gpioInit()
 	GPIO_IntConfig(gpioPortF,7,1,1,1);
 
 	// for presence detector
-	GPIO_PinModeSet(gpioPortF, 2, gpioModeInputPull, 1);
-	GPIO_IntConfig(gpioPortF,2,1,1,1);
+	presence_init();
+	presence_enable();
 }
 
 void GPIO_EVEN_IRQHandler(void)
 {
-	LOG_INFO("EVEN here!");
-	uint32_t reason = GPIO_IntGet();
-	GPIO_IntClear(reason);
-	gecko_external_signal(BUTTON0_FLAG);
+	printf("EVEN here!\n");
+	uint32_t pin_index = GPIO_IntGet();
+	GPIO_IntClear(pin_index);
+	printf("(EVEN) triggered pin index : %d\n",pin_index);
+	uint32_t pin_interrupt_flag = 0;
+	if(pin_index == BP0_PIN_INDEX){
+		pin_interrupt_flag = BP0_FLAG;
+	}
+
+	gecko_external_signal(pin_interrupt_flag);
 }
+
+bool presence_state = 0;
 void GPIO_ODD_IRQHandler(void)
 {
-	LOG_INFO("ODD here!");
-	uint32_t reason = GPIO_IntGet();
-	GPIO_IntClear(reason);
-	gecko_external_signal(BUTTON1_FLAG);
+	printf("ODD here!\n");
+	uint32_t pin_index = GPIO_IntGet();
+	GPIO_IntClear(pin_index);
+	printf("(ODD) triggered pin index : %d\n",pin_index);
+	uint32_t pin_interrupt_flag = 0;
+	if(pin_index == BP1_PIN_INDEX){
+		pin_interrupt_flag = BP1_FLAG;
+	}
+	if(pin_index == PRESENCE_PIN_INDEX){
+		presence_state ^= 1;
+		gpioLed0Toggle();
+		printf("Room state : %d\n",presence_state);
+	}
+	gecko_external_signal(pin_interrupt_flag);
+}
+void gpioLed0Toggle()
+{
+	if(GPIO_PinInGet(LED0_port,LED0_pin))GPIO_PinOutClear(LED0_port,LED0_pin);
+	else GPIO_PinOutSet(LED0_port,LED0_pin);
 }
 
 void gpioLed0SetOn()

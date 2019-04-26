@@ -54,9 +54,10 @@
 #include "src/clock_init.h"
 #include "src/state_machine_params.h"
 #include "src/ble_stack_params.h"
-
+#include "src/gecko_ble_errors.h"
 #include "em_core.h"
-
+#include "mesh_generic_model_capi_types.h"
+#include "src/mesh_custom_model_map.h"
 /***********************************************************************************************//**
  * @addtogroup Application
  * @{
@@ -219,9 +220,9 @@ void set_device_name(bd_addr *pAddr)
   uint16 res;
 
 #if DEVICE_IS_ONOFF_PUBLISHER
-  sprintf(name, "5823PUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "PUBLISHER %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #else
-  sprintf(name, "5823SUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "SUBSCRIBER %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #endif
 
   // write device name to the GATT database
@@ -592,7 +593,7 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 	case gecko_evt_system_external_signal_id:
 		LOG_INFO("in external signal id");
 		if ((evt->data.evt_system_external_signal.extsignals & BUTTON1_FLAG) != 0)
-				{
+		{
 			struct mesh_generic_request req;
 			uint16_t resp;
 			uint8_t transition = 0;
@@ -600,29 +601,32 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 			trid++;
 
 		//TEST brightness model with button 1 4/24 Tim
-			//req.kind = brightness_request;
-		//TEST brightness model with button 1 4/24 Tim
-			req.kind = smoke_request;
+			req.kind = brightness_request;
 			if(GPIO_PinInGet(gpioPortF,7) == 1)
 			{
-//				req.brightness_level = 0;
-				req.smoke_level = 0;
+				req.brightness_level = 2000;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,7) == 0)
 			{
-//				req.brightness_level = 1;
-				req.smoke_level = 1;
+				req.brightness_level = 3000;
 				LOG_INFO("pressed");
 			}
-			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
-//			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
-
-			if (resp) {
-				LOG_INFO("publish fail");
-			} else {
-				LOG_INFO("Transaction ID = %u", trid);
-			}
+//		//TEST brightness model with button 1 4/24 Tim
+//			req.kind = smoke_request;
+//			if(GPIO_PinInGet(gpioPortF,7) == 1)
+//			{
+//				req.smoke_level = 2000;
+//				LOG_INFO("released");
+//			}
+//			else if(GPIO_PinInGet(gpioPortF,7) == 0)
+//			{
+//				req.smoke_level = 3000;
+//				LOG_INFO("pressed");
+//			}
+//			resp = mesh_lib_generic_client_publish(SMOKE_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			BTSTACK_LOG_RESULT(mesh_lib_generic_client_publish,resp);
 		}
 
 		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
@@ -738,7 +742,7 @@ static void br_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("BR request here!\n");
-	displayPrintf(DISPLAY_ROW_ACTION, "BR : %d",request->brightness_level);
+	displayPrintf(DISPLAY_ROW_ACTION, "BR : %d",request->level);
 }
 
 static void br_change(uint16_t model_id,
@@ -760,7 +764,7 @@ static void sm_request(uint16_t model_id,
                           uint8_t request_flags)
 {
 	LOG_INFO("SM request here!\n");
-	displayPrintf(DISPLAY_ROW_ACTION, "SM : %d",request->smoke_level);
+	displayPrintf(DISPLAY_ROW_ACTION, "SM : %d",request->level);
 }
 
 static void sm_change(uint16_t model_id,

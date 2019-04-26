@@ -9,6 +9,18 @@
 #define SRC_GPIO_H_
 #include <stdbool.h>
 
+
+// external event flag
+#define PUSHBUTTON_FLAG 0x13
+#define BP1_PIN_INDEX 	128
+#define BP0_PIN_INDEX 	64
+#define PRESENCE_PIN_INDEX 8
+#define PRESENCE_FLAG 	1<<3
+#define BP0_FLAG 1<<0
+#define BP1_FLAG 1<<1
+#define SM_FLAG  1<<2
+#define BR_FLAG  1<<3
+
 #define GPIO_SET_DISPLAY_EXT_COMIN_IMPLEMENTED 	1
 #define GPIO_DISPLAY_SUPPORT_IMPLEMENTED		1
 
