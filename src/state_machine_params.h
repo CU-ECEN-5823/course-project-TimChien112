@@ -23,7 +23,7 @@ volatile uint8_t connection_flag;
 // event flag
 volatile uint8_t event;
 int state_stop_flag;
-#define TEMPREAD_FLAG				(1<<3)
+#define TEMPREAD_FLAG				(1<<5)
 #define	BLE_CONNECT					(1<<1)
 #define	BLE_DISCONNECT				(1<<0)
 

@@ -12,10 +12,12 @@
 #include "em_gpio.h"
 
 //this pin is used for powering the presence_detection_ir_beam
-#define PRESENCE_DETECTION_ENABLE_PORT     gpioPortA
-#define PRESENCE_DETECTION_ENABLE_PIN      3
+#define PRESENCE_FORDWARD_ENABLE_PORT    gpioPortA
+#define PRESENCE_BACKWARD_ENABLE_PORT    gpioPortD
+#define PRESENCE_FORDWARD_ENABLE_PIN      3
+#define PRESENCE_BACKWARD_ENABLE_PIN      10
 
-//bool presence_state = 0;
+bool presence_state;
 
 void presence_init(void);
 void presence_enable(void);

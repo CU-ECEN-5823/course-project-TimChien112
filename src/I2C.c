@@ -14,6 +14,7 @@
 // parameters for I2C transfer function
 	I2C_TransferSeq_TypeDef seq;
 	uint8_t write_buffer_data = 0xE3;
+	//uint8_t write_buffer_data = 0x8A;			//test leghtness sensor
 	uint16_t write_buffer_len = 1;
 	uint8_t read_buffer_data[2];
 	uint16_t read_buffer_len  = 2;
@@ -48,20 +49,21 @@ void i2c_Init(void)
 {
 	gpioTmpSenSetOff();
 	uint16_t device_address = 0x40;
+	//uint16_t device_address = 0x39;  // test lightness sensor
 	seq.addr = device_address<<1;
 }
 
-//void I2C0_IRQHandler(void)
-//{
-//	I2C_TransferReturn_TypeDef ret = I2C_Transfer(I2C0);
-//
-//	if(ret == i2cTransferDone)
-//		{
-//			event |= I2C_TRANSFER_COMPLETE;
-//		}
-//	else if(ret != i2cTransferInProgress)
-//		{
-//			LOG_ERROR("I2C Error %d",ret);
-//			event |= I2C_TRANSFER_ERROR;
-//		}
-//}
+void I2C0_IRQHandler(void)
+{
+	I2C_TransferReturn_TypeDef ret = I2C_Transfer(I2C0);
+
+	if(ret == i2cTransferDone)
+		{
+			event |= I2C_TRANSFER_COMPLETE;
+		}
+	else if(ret != i2cTransferInProgress)
+		{
+			LOG_ERROR("I2C Error %d",ret);
+			event |= I2C_TRANSFER_ERROR;
+		}
+}

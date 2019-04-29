@@ -18,7 +18,7 @@
 #define true	1
 #define false	0
 
-#define enable_Log	0
+#define enable_Log	1
 // state machine flag
 	volatile STATE_T next_state = SENSOR_POWEROFF;
 	volatile STATE_T current_state = SENSOR_POWEROFF;

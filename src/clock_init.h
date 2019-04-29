@@ -10,6 +10,7 @@
 	#define on_time_ms		0
 	uint32_t Period_tick;
 	uint32_t On_time_tick;
+	volatile bool TIMER_INT_SERVED;
 
 void Clock_Init();
 void LETIMER0_IRQHandler(void);

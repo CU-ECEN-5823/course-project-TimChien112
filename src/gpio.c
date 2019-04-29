@@ -49,7 +49,6 @@ void gpioInit()
 
 void GPIO_EVEN_IRQHandler(void)
 {
-	printf("EVEN here!\n");
 	uint32_t pin_index = GPIO_IntGet();
 	GPIO_IntClear(pin_index);
 	printf("(EVEN) triggered pin index : %d\n",pin_index);
@@ -57,14 +56,15 @@ void GPIO_EVEN_IRQHandler(void)
 	if(pin_index == BP0_PIN_INDEX){
 		pin_interrupt_flag = BP0_FLAG;
 	}
-
+	if(pin_index == B_PRESENCE_PIN_INDEX){
+		pin_interrupt_flag = B_PRESENCE_FLAG;
+	}
 	gecko_external_signal(pin_interrupt_flag);
 }
 
-bool presence_state = 0;
+
 void GPIO_ODD_IRQHandler(void)
 {
-	printf("ODD here!\n");
 	uint32_t pin_index = GPIO_IntGet();
 	GPIO_IntClear(pin_index);
 	printf("(ODD) triggered pin index : %d\n",pin_index);
@@ -72,10 +72,8 @@ void GPIO_ODD_IRQHandler(void)
 	if(pin_index == BP1_PIN_INDEX){
 		pin_interrupt_flag = BP1_FLAG;
 	}
-	if(pin_index == PRESENCE_PIN_INDEX){
-		presence_state ^= 1;
-		gpioLed0Toggle();
-		printf("Room state : %d\n",presence_state);
+	if(pin_index == F_PRESENCE_PIN_INDEX){
+		pin_interrupt_flag = F_PRESENCE_FLAG;
 	}
 	gecko_external_signal(pin_interrupt_flag);
 }
