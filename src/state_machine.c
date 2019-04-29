@@ -13,18 +13,21 @@
 #include "gatt_db.h"
 #include "display.h"
 #include "infrastructure.h"
+#include "common.h"
+#include "mesh_custom_model_map.h"
 //#include "gecko_native.h"
 
 #define true	1
 #define false	0
 
-#define enable_Log	1
+#define enable_Log	0
 // state machine flag
-	volatile STATE_T next_state = SENSOR_POWEROFF;
-	volatile STATE_T current_state = SENSOR_POWEROFF;
-	volatile uint8_t event = NO_EVENT;
-	volatile uint8_t connection_flag = BLE_DISCONNECT;
+volatile STATE_T next_state = SENSOR_POWEROFF;
+volatile STATE_T current_state = SENSOR_POWEROFF;
+volatile uint8_t event = NO_EVENT;
+volatile uint8_t connection_flag = BLE_DISCONNECT;
 state_stop_flag = 0;
+
 void state_machine()
 {
 	//LOG_INFO("state_machine in case %d and next state is %d\n",current_state, next_state);
@@ -95,14 +98,13 @@ void state_machine()
 			}
 			break;
 	}
-
 	if((current_state != next_state) && (state_stop_flag==0)){
 		gecko_external_signal(TEMPREAD_FLAG);
 		if(enable_Log)LOG_INFO("State Transition:%d to %d",current_state,next_state);
 		current_state = next_state;
-
 	}
 }
+
 
 void TempValueLog(void)
 {
@@ -119,11 +121,11 @@ void TempValueLog(void)
 	temp = temp<<8;
 	temp |= read_buffer_data[1];
 	float final_temp = (175.72*((float)temp)/65536)-46.85;
+	if(final_temp >= 31){
+		window_state = BUTTON_0_PRESS;
+		LOG_INFO("Window opened %d \n",window_state);
+		displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
+	}
 	LOG_INFO("Read temperature  %04f\n",final_temp);
-	displayPrintf(DISPLAY_ROW_TEMPVALUE,"tempe %04f", final_temp);
-
-	temperature = FLT_TO_UINT32(final_temp*1000, -3);
-	UINT32_TO_BITSTREAM(p, temperature);
-	//gecko_cmd_gatt_server_send_characteristic_notification(0xFF, gattdb_temperature_measurement, 5, htmTempBuffer);
 }
 

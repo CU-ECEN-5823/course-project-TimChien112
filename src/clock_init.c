@@ -9,7 +9,7 @@
 extern uint8_t external_event;
 // parameters for Clock & sleep mode
 	#define sleep_mode 		3
-	#define period_ms 		5000
+	#define period_ms 		3000
 	#define on_time_ms		0
 	uint32_t Period_tick;
 	uint32_t On_time_tick;

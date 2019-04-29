@@ -62,9 +62,6 @@
 #include "src/mesh_custom_model_map.h"
 #include "src/presence_sensor/presence_sensor.h"
 
-
-#include "src/Lightness_sensor/ambient_light.h"
-
 /***********************************************************************************************//**
  * @addtogroup Application
  * @{
@@ -126,6 +123,7 @@ void handle_gecko_event(uint32_t evt_id, struct gecko_cmd_packet *evt);
 void mesh_native_bgapi_init(void);
 bool mesh_bgapi_listener(struct gecko_cmd_packet *evt);
 
+#if DEVICE_IS_ONOFF_PUBLISHER
 /***************************************************************************//**
  * Initialize LPN functionality with configuration and friendship establishment.
  * (code taken from Silicon Labs switch example)
@@ -155,6 +153,38 @@ void lpn_init(void)
 	if (res != 0) {
 		LOG_INFO("ret.code %x", res);
 	}
+}
+#endif
+
+/**
+ * See main function list in soc-btmesh-switch project file
+ */
+void gecko_bgapi_classes_init_client_lpn(void)
+{
+	gecko_bgapi_class_dfu_init();
+	gecko_bgapi_class_system_init();
+	gecko_bgapi_class_le_gap_init();
+	gecko_bgapi_class_le_connection_init();
+	//gecko_bgapi_class_gatt_init();
+	gecko_bgapi_class_gatt_server_init();
+	gecko_bgapi_class_hardware_init();
+	gecko_bgapi_class_flash_init();
+	gecko_bgapi_class_test_init();
+	//gecko_bgapi_class_sm_init();
+	//mesh_native_bgapi_init();
+	gecko_bgapi_class_mesh_node_init();
+	//gecko_bgapi_class_mesh_prov_init();
+	gecko_bgapi_class_mesh_proxy_init();
+	gecko_bgapi_class_mesh_proxy_server_init();
+	//gecko_bgapi_class_mesh_proxy_client_init();
+	gecko_bgapi_class_mesh_generic_client_init();
+	//gecko_bgapi_class_mesh_generic_server_init();
+	//gecko_bgapi_class_mesh_vendor_model_init();
+	//gecko_bgapi_class_mesh_health_client_init();
+	//gecko_bgapi_class_mesh_health_server_init();
+	//gecko_bgapi_class_mesh_test_init();
+	gecko_bgapi_class_mesh_lpn_init();
+	//gecko_bgapi_class_mesh_friend_init();
 }
 
 /**
@@ -188,38 +218,9 @@ void gecko_bgapi_classes_init_server_friend(void)
 	gecko_bgapi_class_mesh_friend_init();
 }
 
-
 /**
- * See main function list in soc-btmesh-switch project file
- */
-void gecko_bgapi_classes_init_client_lpn(void)
-{
-	gecko_bgapi_class_dfu_init();
-	gecko_bgapi_class_system_init();
-	gecko_bgapi_class_le_gap_init();
-	gecko_bgapi_class_le_connection_init();
-	//gecko_bgapi_class_gatt_init();
-	gecko_bgapi_class_gatt_server_init();
-	gecko_bgapi_class_hardware_init();
-	gecko_bgapi_class_flash_init();
-	gecko_bgapi_class_test_init();
-	//gecko_bgapi_class_sm_init();
-	//mesh_native_bgapi_init();
-	gecko_bgapi_class_mesh_node_init();
-	//gecko_bgapi_class_mesh_prov_init();
-	gecko_bgapi_class_mesh_proxy_init();
-	gecko_bgapi_class_mesh_proxy_server_init();
-	//gecko_bgapi_class_mesh_proxy_client_init();
-	gecko_bgapi_class_mesh_generic_client_init();
-	//gecko_bgapi_class_mesh_generic_server_init();
-	//gecko_bgapi_class_mesh_vendor_model_init();
-	//gecko_bgapi_class_mesh_health_client_init();
-	//gecko_bgapi_class_mesh_health_server_init();
-	//gecko_bgapi_class_mesh_test_init();
-	gecko_bgapi_class_mesh_lpn_init();
-	//gecko_bgapi_class_mesh_friend_init();
-}
-
+*	@brief 		Write and set device address
+*/
 void set_device_name(bd_addr *pAddr)
 {
   char name[20];
@@ -244,33 +245,23 @@ void set_device_name(bd_addr *pAddr)
 
 void gecko_main_init()
 {
-  // Initialize device
+// Initialize device
   initMcu();
-  // Initialize board
+// Initialize board
   initBoard();
-  // Initialize application
+// Initialize application
   initApp();
 
   gpioInit();
-// temperature sensor
-//Initialize timer, clock & Oscillator
-  if(DeviceUsesServerModel())Clock_Init();
-//Initialize I2C
+// temperature sensor setting
+  Clock_Init();
   i2c_Init();
-
-
-//  //ambient light
-//  TIMER0_setup();
-//  I2C0_init();
-//  lum_enable();
-
 
 //Initialize LCD
   displayInit();
 //Log
   logFlush();
-  // Minimize advertisement latency by allowing the advertiser to always
-  // interrupt the scanner.
+// Minimize advertisement latency by allowing the advertiser to always interrupt the scanner.
   linklayer_priorities.scan_max = linklayer_priorities.adv_min + 1;
 
   gecko_stack_init(&config);
@@ -281,12 +272,14 @@ void gecko_main_init()
 	  gecko_bgapi_classes_init_server_friend();
   }
 
-  // Initialize coexistence interface. Parameters are taken from HAL config.
+// Initialize coexistence interface. Parameters are taken from HAL config.
   gecko_initCoexHAL();
 
 }
 
-// subscriber
+/**
+*	@brief 		Handler for Friend node mesh event (Subscriber, Server model)
+*/
 void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 {
   switch (evt_id) {
@@ -308,7 +301,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	LOG_INFO("in mesh node initialized");
 
     	//load persistent data in the beginning
-    	LOG_INFO("load persistent data, ret : ",home_state_load());
+    	LOG_INFO("load persistent data",home_state_load());
 
     	struct gecko_msg_mesh_node_initialized_evt_t *pData = (struct gecko_msg_mesh_node_initialized_evt_t *)&(evt->data);
 
@@ -325,6 +318,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     		}
     		LOG_INFO("node is provisioned");
     		displayPrintf(DISPLAY_ROW_CONNECTION, "Provisioned");
+    		provisioning_complete = 1;
     	} else {
     		LOG_INFO("node is unprovisioned");
     		displayPrintf(DISPLAY_ROW_CONNECTION, "Unprovisioned");
@@ -361,14 +355,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	provisioning_complete = 0;
     	break;
 
-
-	// this following case is not being used for now
-    case gecko_evt_mesh_generic_server_state_changed_id:
-    	LOG_INFO("state change " );
-//    	mesh_lib_generic_server_event_handler(evt);
-    	break;
-
-	// this event is triggered every time server receives some data that it subscribed to
+    	//while friend node receiving any known requests, this event will be triggered
     case gecko_evt_mesh_generic_server_client_request_id:
     	LOG_INFO("state request " );
     	mesh_lib_generic_server_event_handler(evt);
@@ -523,6 +510,7 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
   }
 }
 
+#if DEVICE_IS_ONOFF_PUBLISHER
 //publisher
 void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 {
@@ -738,24 +726,33 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
       break;
   }
 }
+#endif
+
+/**
+*
+*	@brief 		initialize the model handler with request callback function
+*
+*/
 static void init_models(void)
 {
 	LOG_INFO("init model here!\n");
 	mesh_lib_generic_server_register_handler(BUTTON_FRIEND_MODEL_ID,
 												0,
-												pb_request,
-												pb_change);
+												sm_request,
+												sm_change);
 	mesh_lib_generic_server_register_handler(BRIGHTNESS_FRIEND_MODEL_ID,
 												0,
 												br_request,
 												br_change);
-	mesh_lib_generic_server_register_handler(SMOKE_FRIEND_MODEL_ID,
-												0,
-												sm_request,
-												sm_change);
+
 }
 
-static void pb_request(uint16_t model_id,
+/**
+*
+*	@brief 		Callback function while Friend node receive generic on/off request from LPN, and change the window state according to received value
+*
+*/
+static void sm_request(uint16_t model_id,
                           uint16_t element_index,
                           uint16_t client_addr,
                           uint16_t server_addr,
@@ -781,7 +778,7 @@ static void pb_request(uint16_t model_id,
 	}
 }
 
-static void pb_change(uint16_t model_id,
+static void sm_change(uint16_t model_id,
                          uint16_t element_index,
                          const struct mesh_generic_state *current,
                          const struct mesh_generic_state *target,
@@ -789,6 +786,12 @@ static void pb_change(uint16_t model_id,
 {
 	LOG_INFO("PB0 State Changed");
 }
+
+/**
+*
+*	@brief 		Callback function while Friend node receive lightness request from LPN, and change the lightness according to received value
+*
+*/
 static void br_request(uint16_t model_id,
                           uint16_t element_index,
                           uint16_t client_addr,
@@ -813,29 +816,12 @@ static void br_change(uint16_t model_id,
 {
 	LOG_INFO("BR State Changed");
 }
-static void sm_request(uint16_t model_id,
-                          uint16_t element_index,
-                          uint16_t client_addr,
-                          uint16_t server_addr,
-                          uint16_t appkey_index,
-                          const struct mesh_generic_request *request,
-                          uint32_t transition_ms,
-                          uint16_t delay_ms,
-                          uint8_t request_flags)
-{
-	LOG_INFO("SM request here!\n");
-	displayPrintf(DISPLAY_ROW_TEMPVALUE, "SM : %d",request->level);
-}
 
-static void sm_change(uint16_t model_id,
-                         uint16_t element_index,
-                         const struct mesh_generic_state *current,
-                         const struct mesh_generic_state *target,
-                         uint32_t remaining_ms)
-{
-	LOG_INFO("SM State Changed");
-}
-
+/**
+*
+*	@brief 		Publish room state to LPN with server on/off model
+*
+*/
 void publish_room_state(void)
 {
 	errorcode_t resp;
@@ -863,9 +849,17 @@ void publish_room_state(void)
 			LOG_INFO("Published room state \n", resp);
 		}
 	}
-
 }
 
+
+/**
+*	@brief 		Store states and lightness value to flash memory
+*
+*	@param		uint8_t state_index		index of model whose data need to be stored
+*
+*	@return   	0 if all states and value are saved successfully
+*				1 one of these persistent data saving is failed
+*/
 int state_store(uint8_t state_index )
 {
   struct gecko_msg_flash_ps_save_rsp_t* pSave;
@@ -897,32 +891,43 @@ int state_store(uint8_t state_index )
   return 0;
 }
 
+
+
+/**
+*	@brief 		Recover states and lightness value from flash memory
+*
+*	@param
+*
+*	@return   	0 if all states and value are loaded successfully
+*				1 one of these persistent data loading is failed
+*/
 static int home_state_load(void)
 {
   struct gecko_msg_flash_ps_load_rsp_t* pLoad;
   LOG_INFO("persistent data load");
+
+
   //load lightness level
   pLoad = gecko_cmd_flash_ps_load(0x4004);
-
-
   if (pLoad->result) {
     memset(&lightness_level, 0, 2);
     return -1;
   }
   memcpy(&lightness_level, pLoad->value.data, pLoad->value.len);
   LOG_INFO("Lightness data load %d",lightness_level);
+
+
   //load presence state
   pLoad = gecko_cmd_flash_ps_load(0x400c);
-
   if (pLoad->result) {
     memset(&presence_state, 0, 1);
     return -1;
   }
   memcpy(&presence_state, pLoad->value.data, pLoad->value.len);
   LOG_INFO("Room state load %d",presence_state);
+
   //load window state
   pLoad = gecko_cmd_flash_ps_load(0x4010);
-
   if (pLoad->result) {
     memset(&presence_state, 0, 1);
     return -1;
