@@ -19,7 +19,6 @@ This project is developed as final project for the course ECEN 5823.
 							with IR beam (presense detecter) sensor and LED (bulb).
 							Friend node will receive the state changing request (brightness) from LPN, and change the local state. According to the current local state, Friend will change the brightness of the bulb.
 							Friend node will sent the presense state to Low power node.
-						3. Proxy Node.
 							
 
  Sensors used 	1. MAX3010 Particle sensor for smoke detection 
@@ -31,3 +30,23 @@ This project is developed as final project for the course ECEN 5823.
 	Can publish the request from LPN to friend for button state changing.
 	Enable the GPIO interrupt for IR Beam sensor interrupt.
 	Start working on the I2C communication for light ambient sensor.
+	
+4-29 final update:
+
+	Complete mesh communication with Generic On/Off model and Lightness model, and show it on Friend node LCD
+		Receive smoke alert from LPN with Generic On/Off model, and use it to change window state.
+		Receive lightness level value from LPN with lightness model.
+		Sent room state to LPN with Generic On/Off model to turn sensors on and off.
+		
+	Use two IR beam sensors to count the number of people in the room.
+		Use people count to turn LED on and off.
+		
+	Use temperature sensor to control window state.
+		if temperature value higher than 30 degree Celsius, open the window
+		
+	Implement the persistent data storage and loading functionalities
+		When the room state, window state, and value of lightness change, those data will be stored to flash memory.
+		If Friend node is turned off or shut down accidentally, those persistent data can be recoveried from flash memory in initialization process.
+		
+	
+	
