@@ -47,6 +47,8 @@ This project is developed as final project for the course ECEN 5823.
 	Implement the persistent data storage and loading functionalities
 		When the room state, window state, and value of lightness change, those data will be stored to flash memory.
 		If Friend node is turned off or shut down accidentally, those persistent data can be recoveried from flash memory in initialization process.
-		
+
+Group report Link: https://drive.google.com/file/d/1kbifmCT0BC0zGU0sI-ALf91gBCcpUDaV/view?usp=sharing
+Individual report Link: https://drive.google.com/file/d/1lGOTmayz0zMeHHAO1PTn6TQOiRR2MahR/view?usp=sharing
 	
 	
