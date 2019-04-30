@@ -121,7 +121,7 @@ void TempValueLog(void)
 	temp = temp<<8;
 	temp |= read_buffer_data[1];
 	float final_temp = (175.72*((float)temp)/65536)-46.85;
-	if(final_temp >= 31){
+	if(final_temp >= 32){
 		window_state = BUTTON_0_PRESS;
 		LOG_INFO("Window opened %d \n",window_state);
 		displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");

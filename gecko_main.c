@@ -357,7 +357,6 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 
     	//while friend node receiving any known requests, this event will be triggered
     case gecko_evt_mesh_generic_server_client_request_id:
-    	LOG_INFO("state request " );
     	mesh_lib_generic_server_event_handler(evt);
     	break;
 
@@ -802,8 +801,9 @@ static void br_request(uint16_t model_id,
                           uint16_t delay_ms,
                           uint8_t request_flags)
 {
-	LOG_INFO("BR request here!\n");
-	displayPrintf(DISPLAY_ROW_LPN, "BR : %d",request->level);
+	displayPrintf(DISPLAY_ROW_LPN, "BR: %d (%%)",request->level);
+	if(request->level >=50) gpioLed1SetOff();
+	else gpioLed1SetOn();
 	lightness_level = request->level;
 	state_store(LIGHTNESS_STATE);
 }
@@ -828,6 +828,7 @@ void publish_room_state(void)
 
 	room_state.kind = mesh_generic_state_on_off;
 	room_state.on_off.on = presence_state;
+	LOG_INFO("room state request send %d\r\n",room_state.on_off.on);
 
 	resp = mesh_lib_generic_server_update(MESH_GENERIC_ON_OFF_SERVER_MODEL_ID,
 				  	  	  	  	  	  	  	  	0,
@@ -873,8 +874,8 @@ int state_store(uint8_t state_index )
 	  }
   }else if (state_index == PRESENCE_STATE)
   {
-	  pSave = gecko_cmd_flash_ps_save(0x400c, 1, (const uint8*)&presence_state);
-	  LOG_INFO("Room state value stored %d\n",presence_state);
+	  pSave = gecko_cmd_flash_ps_save(0x400c, 1, (const uint8*)&people_count);
+	  LOG_INFO("Room state value stored %d\n",people_count);
 	  if (pSave->result) {
 		printf("Room state store : PS save failed, code %x\r\n", pSave->result);
 		return(-1);
@@ -915,16 +916,26 @@ static int home_state_load(void)
   }
   memcpy(&lightness_level, pLoad->value.data, pLoad->value.len);
   LOG_INFO("Lightness data load %d",lightness_level);
+  displayPrintf(DISPLAY_ROW_LPN, "BR: %d (%%)",lightness_level);
 
 
   //load presence state
   pLoad = gecko_cmd_flash_ps_load(0x400c);
   if (pLoad->result) {
-    memset(&presence_state, 0, 1);
+    memset(&people_count, 0, 1);
     return -1;
   }
-  memcpy(&presence_state, pLoad->value.data, pLoad->value.len);
-  LOG_INFO("Room state load %d",presence_state);
+  memcpy(&people_count, pLoad->value.data, pLoad->value.len);
+  LOG_INFO("Room state load %d",people_count);
+  if(people_count == 0){
+	displayPrintf(DISPLAY_ROW_ACTION, "Room clear");
+	presence_state = 0;
+	gpioLed0SetOff();
+}
+  else{
+	gpioLed0SetOn();
+	displayPrintf(DISPLAY_ROW_ACTION, "People in : %d",people_count);
+  }
 
   //load window state
   pLoad = gecko_cmd_flash_ps_load(0x4010);
@@ -934,5 +945,7 @@ static int home_state_load(void)
   }
   memcpy(&window_state, pLoad->value.data, pLoad->value.len);
   LOG_INFO("Window state load %d",window_state);
+  if(window_state)displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
+  else displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
   return 0;
 }
