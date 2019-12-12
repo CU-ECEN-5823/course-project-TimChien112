@@ -9,6 +9,7 @@
  */
 
 //#define INCLUDE_LOG_DEBUG 1
+#include <src/common.h>
 #include "graphics.h"
 #include <stdio.h>
 #include <stdbool.h>

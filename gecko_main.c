@@ -16,6 +16,8 @@
  * sections of the MSLA applicable to Source Code.
  *
  ******************************************************************************/
+#include <stdlib.h>
+#include <stdio.h>
 
 /* Board headers */
 #include "init_mcu.h"
@@ -46,10 +48,19 @@
 #endif
 #include "src/ble_mesh_device_type.h"
 
-#include "src/scheduler.h"
+#include <src/common.h>
 #include "src/display.h"
 #include "src/log.h"
 #include "src/gpio.h"
+#include "src/I2C.h"
+#include "src/clock_init.h"
+#include "src/state_machine_params.h"
+#include "src/ble_stack_params.h"
+#include "src/gecko_ble_errors.h"
+#include "em_core.h"
+#include "mesh_generic_model_capi_types.h"
+#include "src/mesh_custom_model_map.h"
+#include "src/presence_sensor/presence_sensor.h"
 
 /***********************************************************************************************//**
  * @addtogroup Application
@@ -85,7 +96,8 @@ extern const struct bg_gattdb_def bg_gattdb_data;
 
 // Flag for indicating DFU Reset must be performed
 uint8_t boot_to_dfu = 0;
-
+uint8_t external_event;
+bool provisioning_complete = 0;
 const gecko_configuration_t config =
 {
   .bluetooth.max_connections = MAX_CONNECTIONS,
@@ -111,6 +123,7 @@ void handle_gecko_event(uint32_t evt_id, struct gecko_cmd_packet *evt);
 void mesh_native_bgapi_init(void);
 bool mesh_bgapi_listener(struct gecko_cmd_packet *evt);
 
+#if DEVICE_IS_ONOFF_PUBLISHER
 /***************************************************************************//**
  * Initialize LPN functionality with configuration and friendship establishment.
  * (code taken from Silicon Labs switch example)
@@ -140,6 +153,38 @@ void lpn_init(void)
 	if (res != 0) {
 		LOG_INFO("ret.code %x", res);
 	}
+}
+#endif
+
+/**
+ * See main function list in soc-btmesh-switch project file
+ */
+void gecko_bgapi_classes_init_client_lpn(void)
+{
+	gecko_bgapi_class_dfu_init();
+	gecko_bgapi_class_system_init();
+	gecko_bgapi_class_le_gap_init();
+	gecko_bgapi_class_le_connection_init();
+	//gecko_bgapi_class_gatt_init();
+	gecko_bgapi_class_gatt_server_init();
+	gecko_bgapi_class_hardware_init();
+	gecko_bgapi_class_flash_init();
+	gecko_bgapi_class_test_init();
+	//gecko_bgapi_class_sm_init();
+	//mesh_native_bgapi_init();
+	gecko_bgapi_class_mesh_node_init();
+	//gecko_bgapi_class_mesh_prov_init();
+	gecko_bgapi_class_mesh_proxy_init();
+	gecko_bgapi_class_mesh_proxy_server_init();
+	//gecko_bgapi_class_mesh_proxy_client_init();
+	gecko_bgapi_class_mesh_generic_client_init();
+	//gecko_bgapi_class_mesh_generic_server_init();
+	//gecko_bgapi_class_mesh_vendor_model_init();
+	//gecko_bgapi_class_mesh_health_client_init();
+	//gecko_bgapi_class_mesh_health_server_init();
+	//gecko_bgapi_class_mesh_test_init();
+	gecko_bgapi_class_mesh_lpn_init();
+	//gecko_bgapi_class_mesh_friend_init();
 }
 
 /**
@@ -173,48 +218,18 @@ void gecko_bgapi_classes_init_server_friend(void)
 	gecko_bgapi_class_mesh_friend_init();
 }
 
-
 /**
- * See main function list in soc-btmesh-switch project file
- */
-void gecko_bgapi_classes_init_client_lpn(void)
-{
-	gecko_bgapi_class_dfu_init();
-	gecko_bgapi_class_system_init();
-	gecko_bgapi_class_le_gap_init();
-	gecko_bgapi_class_le_connection_init();
-	//gecko_bgapi_class_gatt_init();
-	gecko_bgapi_class_gatt_server_init();
-	gecko_bgapi_class_hardware_init();
-	gecko_bgapi_class_flash_init();
-	gecko_bgapi_class_test_init();
-	//gecko_bgapi_class_sm_init();
-	//mesh_native_bgapi_init();
-	gecko_bgapi_class_mesh_node_init();
-	//gecko_bgapi_class_mesh_prov_init();
-	gecko_bgapi_class_mesh_proxy_init();
-	gecko_bgapi_class_mesh_proxy_server_init();
-	//gecko_bgapi_class_mesh_proxy_client_init();
-	gecko_bgapi_class_mesh_generic_client_init();
-	//gecko_bgapi_class_mesh_generic_server_init();
-	//gecko_bgapi_class_mesh_vendor_model_init();
-	//gecko_bgapi_class_mesh_health_client_init();
-	//gecko_bgapi_class_mesh_health_server_init();
-	//gecko_bgapi_class_mesh_test_init();
-	gecko_bgapi_class_mesh_lpn_init();
-	//gecko_bgapi_class_mesh_friend_init();
-
-}
-
+*	@brief 		Write and set device address
+*/
 void set_device_name(bd_addr *pAddr)
 {
   char name[20];
   uint16 res;
 
 #if DEVICE_IS_ONOFF_PUBLISHER
-  sprintf(name, "5823PUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "PUBLISHER %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #else
-  sprintf(name, "5823SUB %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
+  sprintf(name, "SUBSCRIBER %02x:%02x", pAddr->addr[1], pAddr->addr[0]);
 #endif
 
   // write device name to the GATT database
@@ -222,7 +237,7 @@ void set_device_name(bd_addr *pAddr)
   if (res) {
     LOG_INFO("gecko_cmd_gatt_server_write_attribute_value() failed, code %x", res);
   }
-
+  displayPrintf(DISPLAY_ROW_CLIENTADDR, "Home Automation");
   displayPrintf(DISPLAY_ROW_NAME, "%s", name);
   displayPrintf(DISPLAY_ROW_BTADDR, "%x:%x:%x:%x:%x:%x", pAddr->addr[0], pAddr->addr[1], pAddr->addr[2], pAddr->addr[3], pAddr->addr[4], pAddr->addr[5]);
   LOG_INFO("device name set");
@@ -230,18 +245,23 @@ void set_device_name(bd_addr *pAddr)
 
 void gecko_main_init()
 {
-  // Initialize device
+// Initialize device
   initMcu();
-  // Initialize board
+// Initialize board
   initBoard();
-  // Initialize application
+// Initialize application
   initApp();
 
-  displayInit();
   gpioInit();
+// temperature sensor setting
+  Clock_Init();
+  i2c_Init();
 
-  // Minimize advertisement latency by allowing the advertiser to always
-  // interrupt the scanner.
+//Initialize LCD
+  displayInit();
+//Log
+  logFlush();
+// Minimize advertisement latency by allowing the advertiser to always interrupt the scanner.
   linklayer_priorities.scan_max = linklayer_priorities.adv_min + 1;
 
   gecko_stack_init(&config);
@@ -252,11 +272,14 @@ void gecko_main_init()
 	  gecko_bgapi_classes_init_server_friend();
   }
 
-  // Initialize coexistence interface. Parameters are taken from HAL config.
+// Initialize coexistence interface. Parameters are taken from HAL config.
   gecko_initCoexHAL();
 
 }
 
+/**
+*	@brief 		Handler for Friend node mesh event (Subscriber, Server model)
+*/
 void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 {
   switch (evt_id) {
@@ -277,6 +300,9 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     case gecko_evt_mesh_node_initialized_id:
     	LOG_INFO("in mesh node initialized");
 
+    	//load persistent data in the beginning
+    	LOG_INFO("load persistent data",home_state_load());
+
     	struct gecko_msg_mesh_node_initialized_evt_t *pData = (struct gecko_msg_mesh_node_initialized_evt_t *)&(evt->data);
 
     	if (pData->provisioned) {
@@ -291,10 +317,11 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     			LOG_INFO("Friend init failed 0x%x", res);
     		}
     		LOG_INFO("node is provisioned");
-    		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
+    		displayPrintf(DISPLAY_ROW_CONNECTION, "Provisioned");
+    		provisioning_complete = 1;
     	} else {
     		LOG_INFO("node is unprovisioned");
-    		displayPrintf(DISPLAY_ROW_ACTION, "Unprovisioned");
+    		displayPrintf(DISPLAY_ROW_CONNECTION, "Unprovisioned");
     		gecko_cmd_mesh_node_start_unprov_beaconing(0x3);   // enable ADV and GATT provisioning bearer
     	}
     	break;
@@ -305,18 +332,19 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	break;
 
     case gecko_evt_mesh_node_provisioned_id:
-    		mesh_lib_init(malloc,free,9);
-    		init_models();
-    		gecko_cmd_mesh_generic_server_init();
-    		//for friend functionality
-    		LOG_INFO("Friend mode initialization");
-    		uint16 res;
-    		res = gecko_cmd_mesh_friend_init()->result;
-    		if (res) {
-    			LOG_INFO("Friend init failed 0x%x", res);
-    		}
-    		LOG_INFO("node is provisioned");
-    		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
+		mesh_lib_init(malloc,free,9);
+		init_models();
+		gecko_cmd_mesh_generic_server_init();
+		//for friend functionality
+		LOG_INFO("Friend mode initialization");
+		uint16 res;
+		res = gecko_cmd_mesh_friend_init()->result;
+		if (res) {
+			LOG_INFO("Friend init failed 0x%x", res);
+		}
+		LOG_INFO("node is provisioned");
+		provisioning_complete = 1;
+		displayPrintf(DISPLAY_ROW_CONNECTION, "Provisioned");
     	break;
 
     case gecko_evt_mesh_node_provisioning_failed_id:
@@ -324,18 +352,11 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     	displayPrintf(DISPLAY_ROW_ACTION, "Provisioning Failed");
     	/* start a one-shot timer that will trigger soft reset after small delay of 2 seconds*/
     	gecko_cmd_hardware_set_soft_timer(32768*2, TIMER_ID_RESTART, 1);
+    	provisioning_complete = 0;
     	break;
 
-
-	// this following case is not being used for now
-    case gecko_evt_mesh_generic_server_state_changed_id:
-    	LOG_INFO("state change " );
-//    	mesh_lib_generic_server_event_handler(evt);
-    	break;
-
-	// this event is triggered every time server receives some data that it subscribed to
+    	//while friend node receiving any known requests, this event will be triggered
     case gecko_evt_mesh_generic_server_client_request_id:
-    	LOG_INFO("state request " );
     	mesh_lib_generic_server_event_handler(evt);
     	break;
 
@@ -380,52 +401,85 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
       break;
     case gecko_evt_mesh_friend_friendship_established_id:
     	LOG_INFO("evt gecko_evt_mesh_friend_friendship_established, lpn_address=%x\r\n", evt->data.evt_mesh_friend_friendship_established.lpn_address);
-
-          break;
+    	displayPrintf(DISPLAY_ROW_BTADDR2, "Friend");
+        break;
 
     case gecko_evt_mesh_friend_friendship_terminated_id:
     	LOG_INFO("evt gecko_evt_mesh_friend_friendship_terminated, reason=%x\r\n", evt->data.evt_mesh_friend_friendship_terminated.reason);
 
-          break;
+        break;
 
 	case gecko_evt_system_external_signal_id:
-		LOG_INFO("in server external signal id");
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
+		//LOG_INFO("in server external signal id %d",evt->data.evt_system_external_signal.extsignals);
+		if((evt->data.evt_system_external_signal.extsignals & TEMPREAD_FLAG))
 		{
-			struct mesh_generic_state sta;
-			struct mesh_generic_request req;
-			uint16_t resp;
-			uint8_t transition = 0;
-			uint8_t delay = 0;
-			sta.kind = mesh_generic_state_pb0_press_release;
+			CORE_CRITICAL_SECTION(
+				external_event &= ~TEMPREAD_FLAG;
+			)
+			if(provisioning_complete) {
+				state_machine();
+			}
+		}
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
+		{
 
-
-			trid++;
-
+			CORE_CRITICAL_SECTION(
+				external_event &= ~BUTTON0_FLAG;
+			)
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
 				LOG_INFO("released");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				sta.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				req.kind = mesh_generic_request_pb0_press_release;
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
 				LOG_INFO("pressed");
 			}
 
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0xffff, trid, &req, transition, delay, 0);
-
-			if (resp) {
-				LOG_INFO("publish fail");
-			} else {
-				LOG_INFO("Transaction ID = %u", trid);
+		}
+		if ((evt->data.evt_system_external_signal.extsignals & F_PRESENCE_FLAG) != 0)
+		{
+			CORE_CRITICAL_SECTION(
+				external_event &= ~F_PRESENCE_FLAG;
+			)
+			if(presence_order_flag & B_PRESENCE_FLAG)
+			{
+				LOG_INFO("go out");
+				people_count --;
+				if(people_count == 0 || people_count == 255){
+					presence_state = false;
+					displayPrintf(DISPLAY_ROW_ACTION, "Room clear");
+					people_count = 0;
+					gpioLed0SetOff();
+				}
+				else displayPrintf(DISPLAY_ROW_ACTION, "People in : %d",people_count);
+				presence_order_flag = 0;
+				state_store(PRESENCE_STATE);
+				publish_room_state();
+				LOG_INFO("Room state : %d people : %d\n",presence_state,people_count);
+			}else{
+				presence_order_flag = F_PRESENCE_FLAG;
 			}
+
+		}
+		if ((evt->data.evt_system_external_signal.extsignals & B_PRESENCE_FLAG) != 0)
+		{
+			CORE_CRITICAL_SECTION(
+				external_event &= ~B_PRESENCE_FLAG;
+			)
+				if(presence_order_flag & F_PRESENCE_FLAG)
+				{
+					LOG_INFO("get in");
+					people_count ++;
+					presence_state = true;
+					presence_order_flag = 0;
+					gpioLed0SetOn();
+					state_store(PRESENCE_STATE);
+					publish_room_state();
+					displayPrintf(DISPLAY_ROW_ACTION, "People in : %d",people_count);
+					LOG_INFO("Room state : %d people : %d\n",presence_state,people_count);
+				}else{
+					presence_order_flag = B_PRESENCE_FLAG;
+				}
 		}
 		break;
 
@@ -455,6 +509,8 @@ void handle_gecko_server_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
   }
 }
 
+#if DEVICE_IS_ONOFF_PUBLISHER
+//publisher
 void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 {
   switch (evt_id) {
@@ -481,7 +537,6 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     		mesh_lib_init(malloc,free,8);
     		gecko_cmd_mesh_generic_client_init();
     		lpn_init();
-    		NVIC_EnableIRQ(GPIO_EVEN_IRQn);
     		LOG_INFO("node is provisioned");
     		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
     	} else {
@@ -500,7 +555,7 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
     		mesh_lib_init(malloc,free,8);
     		gecko_cmd_mesh_generic_client_init();
     		lpn_init();
-    		NVIC_EnableIRQ(GPIO_EVEN_IRQn);
+
     		LOG_INFO("node is provisioned");
     		displayPrintf(DISPLAY_ROW_ACTION, "Provisioned");
     	break;
@@ -550,7 +605,7 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 		num_connections++;
 		// turn off lpn feature after GATT connection is opened
 		gecko_cmd_mesh_lpn_deinit();
-		displayPrintf(DISPLAY_ROW_LPN, "LPN off");
+		displayPrintf(DISPLAY_ROW_BTADDR2, "LPN off");
 		break;
 
     case gecko_evt_le_connection_closed_id:
@@ -570,50 +625,72 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
 
     case gecko_evt_mesh_lpn_friendship_established_id:
     	LOG_INFO("friendship established");
-    	displayPrintf(DISPLAY_ROW_LPN, "LPN");
+    	displayPrintf(DISPLAY_ROW_BTADDR2, "LPN");
     	break;
 
     case gecko_evt_mesh_lpn_friendship_failed_id:
     	LOG_INFO("friendship failed");
-    	displayPrintf(DISPLAY_ROW_LPN, "no friend");
+    	displayPrintf(DISPLAY_ROW_BTADDR2, "no friend");
     	// try again in 2 seconds
     	gecko_cmd_hardware_set_soft_timer(2 * 32768, TIMER_ID_FRIEND_FIND, 1);
     	break;
 
     case gecko_evt_mesh_lpn_friendship_terminated_id:
     	LOG_INFO("friendship terminated");
-    	displayPrintf(DISPLAY_ROW_LPN, "friend lost");
+    	displayPrintf(DISPLAY_ROW_BTADDR2, "friend lost");
     	if (num_connections == 0) {
     		// try again in 2 seconds
     		gecko_cmd_hardware_set_soft_timer(2 * 32768, TIMER_ID_FRIEND_FIND, 1);
     	}
     	break;
 
+
 	case gecko_evt_system_external_signal_id:
 		LOG_INFO("in external signal id");
-		if ((evt->data.evt_system_external_signal.extsignals & PUSHBUTTON_FLAG) != 0)
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON1_FLAG) != 0)
 		{
 			struct mesh_generic_request req;
 			uint16_t resp;
 			uint8_t transition = 0;
 			uint8_t delay = 0;
-			req.kind = mesh_generic_request_pb0_press_release;
+			trid++;
+
+		//TEST brightness model with button 1 4/24 Tim (works!)
+			req.kind = brightness_request;
+			if(GPIO_PinInGet(gpioPortF,7) == 1)
+			{
+				req.brightness_level = 2000;
+				LOG_INFO("released");
+			}
+			else if(GPIO_PinInGet(gpioPortF,7) == 0)
+			{
+				req.brightness_level = 3000;
+				LOG_INFO("pressed");
+			}
+			resp = mesh_lib_generic_client_publish(BRIGHTNESS_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			BTSTACK_LOG_RESULT(mesh_lib_generic_client_publish,resp);
+		}
+
+		if ((evt->data.evt_system_external_signal.extsignals & BUTTON0_FLAG) != 0)
+		{
+			struct mesh_generic_request req;
+			uint16_t resp;
+			uint8_t transition = 0;
+			uint8_t delay = 0;
+			req.kind = button_request;
 			trid++;
 
 			if(GPIO_PinInGet(gpioPortF,6) == 1)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Released");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS;
-				LOG_INFO("released");
+				req.button_state = WINDOW_ON;
+				LOG_INFO("released / open the window");
 			}
 			else if(GPIO_PinInGet(gpioPortF,6) == 0)
 			{
-//				displayPrintf(DISPLAY_ROW_ACTION, "Pressed");
-				req.pb0_press_release = MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE;
-				LOG_INFO("pressed");
+				req.button_state = WINDOW_OFF;
+				LOG_INFO("pressed / close the window");
 			}
-
-			resp = mesh_lib_generic_client_publish(MESH_GENERIC_PB0_PRESS_RELEASE_CLIENT_MODEL_ID, 0, trid, &req, transition, delay, 0);
+			resp = mesh_lib_generic_client_publish(BUTTON_LPN_MODEL_ID, 0, trid, &req, transition, delay, 0);
 
 			if (resp) {
 				LOG_INFO("publish fail");
@@ -648,16 +725,33 @@ void handle_gecko_client_event(uint32_t evt_id, struct gecko_cmd_packet *evt)
       break;
   }
 }
+#endif
+
+/**
+*
+*	@brief 		initialize the model handler with request callback function
+*
+*/
 static void init_models(void)
 {
 	LOG_INFO("init model here!\n");
-	mesh_lib_generic_server_register_handler(MESH_GENERIC_PB0_PRESS_RELEASE_SERVER_MODEL_ID,
+	mesh_lib_generic_server_register_handler(BUTTON_FRIEND_MODEL_ID,
 												0,
-												pb0_pressrelease_request,
-												pb0_pressrelease_change);
+												sm_request,
+												sm_change);
+	mesh_lib_generic_server_register_handler(BRIGHTNESS_FRIEND_MODEL_ID,
+												0,
+												br_request,
+												br_change);
+
 }
 
-static void pb0_pressrelease_request(uint16_t model_id,
+/**
+*
+*	@brief 		Callback function while Friend node receive generic on/off request from LPN, and change the window state according to received value
+*
+*/
+static void sm_request(uint16_t model_id,
                           uint16_t element_index,
                           uint16_t client_addr,
                           uint16_t server_addr,
@@ -667,18 +761,191 @@ static void pb0_pressrelease_request(uint16_t model_id,
                           uint16_t delay_ms,
                           uint8_t request_flags)
 {
-	LOG_INFO("request here!\n");
-	if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_RELEASE)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Released");
-	else if(request->pb0_press_release == MESH_GENERIC_PB0_PRESS_RELEASE_STATE_PRESS)
-		displayPrintf(DISPLAY_ROW_ACTION, "Button Pressed");
+
+	if(request->button_state == BUTTON_0_RELEASE){
+		displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Closed");
+		window_state = BUTTON_0_RELEASE;
+		state_store(WINDOW_STATE);
+		LOG_INFO("Window Closed : %d",window_state);
+
+	}
+	else if(request->button_state == BUTTON_0_PRESS){
+		displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
+		window_state = BUTTON_0_PRESS;
+		state_store(WINDOW_STATE);
+		LOG_INFO("Window Opened : %d",window_state);
+	}
 }
 
-static void pb0_pressrelease_change(uint16_t model_id,
+static void sm_change(uint16_t model_id,
                          uint16_t element_index,
                          const struct mesh_generic_state *current,
                          const struct mesh_generic_state *target,
                          uint32_t remaining_ms)
 {
 	LOG_INFO("PB0 State Changed");
+}
+
+/**
+*
+*	@brief 		Callback function while Friend node receive lightness request from LPN, and change the lightness according to received value
+*
+*/
+static void br_request(uint16_t model_id,
+                          uint16_t element_index,
+                          uint16_t client_addr,
+                          uint16_t server_addr,
+                          uint16_t appkey_index,
+                          const struct mesh_generic_request *request,
+                          uint32_t transition_ms,
+                          uint16_t delay_ms,
+                          uint8_t request_flags)
+{
+	displayPrintf(DISPLAY_ROW_LPN, "BR: %d (%%)",request->level);
+	if(request->level >=50) gpioLed1SetOff();
+	else gpioLed1SetOn();
+	lightness_level = request->level;
+	state_store(LIGHTNESS_STATE);
+}
+
+static void br_change(uint16_t model_id,
+                         uint16_t element_index,
+                         const struct mesh_generic_state *current,
+                         const struct mesh_generic_state *target,
+                         uint32_t remaining_ms)
+{
+	LOG_INFO("BR State Changed");
+}
+
+/**
+*
+*	@brief 		Publish room state to LPN with server on/off model
+*
+*/
+void publish_room_state(void)
+{
+	errorcode_t resp;
+
+	room_state.kind = mesh_generic_state_on_off;
+	room_state.on_off.on = presence_state;
+	LOG_INFO("room state request send %d\r\n",room_state.on_off.on);
+
+	resp = mesh_lib_generic_server_update(MESH_GENERIC_ON_OFF_SERVER_MODEL_ID,
+				  	  	  	  	  	  	  	  	0,
+		                                        &room_state,
+		                                        0,
+		                                        0);
+	if (resp) {
+		LOG_ERROR("Generic server update failed, code = %x\r\n", resp);
+	}
+	else {
+		LOG_INFO("Generic server updated\r\n");
+		resp = mesh_lib_generic_server_publish(MESH_GENERIC_ON_OFF_SERVER_MODEL_ID,
+													0,
+													mesh_generic_state_on_off);
+
+		if (resp) {
+			LOG_ERROR("Publish failed, code = %x\r\n", resp);
+		} else {
+			LOG_INFO("Published room state \n", resp);
+		}
+	}
+}
+
+
+/**
+*	@brief 		Store states and lightness value to flash memory
+*
+*	@param		uint8_t state_index		index of model whose data need to be stored
+*
+*	@return   	0 if all states and value are saved successfully
+*				1 one of these persistent data saving is failed
+*/
+int state_store(uint8_t state_index )
+{
+  struct gecko_msg_flash_ps_save_rsp_t* pSave;
+  if (state_index == LIGHTNESS_STATE)
+  {
+	  pSave = gecko_cmd_flash_ps_save(0x4004, 2, (const uint8*)&lightness_level);
+	  LOG_INFO("lightness value stored %d\n",lightness_level);
+	  if (pSave->result) {
+		printf("Lightness state store : PS save failed, code %x\r\n", pSave->result);
+		return(-1);
+	  }
+  }else if (state_index == PRESENCE_STATE)
+  {
+	  pSave = gecko_cmd_flash_ps_save(0x400c, 1, (const uint8*)&people_count);
+	  LOG_INFO("Room state value stored %d\n",people_count);
+	  if (pSave->result) {
+		printf("Room state store : PS save failed, code %x\r\n", pSave->result);
+		return(-1);
+	  }
+  }if (state_index == WINDOW_STATE)
+  {
+	  pSave = gecko_cmd_flash_ps_save(0x4010, 1, (const uint8*)&window_state);
+	  LOG_INFO("Window state value stored %d\n",window_state);
+	  if (pSave->result) {
+		printf("Window state store : PS save failed, code %x\r\n", pSave->result);
+		return(-1);
+	  }
+  }
+  return 0;
+}
+
+
+
+/**
+*	@brief 		Recover states and lightness value from flash memory
+*
+*	@param
+*
+*	@return   	0 if all states and value are loaded successfully
+*				1 one of these persistent data loading is failed
+*/
+static int home_state_load(void)
+{
+  struct gecko_msg_flash_ps_load_rsp_t* pLoad;
+  LOG_INFO("persistent data load");
+
+
+  //load lightness level
+  pLoad = gecko_cmd_flash_ps_load(0x4004);
+  if (pLoad->result) {
+    memset(&lightness_level, 0, 2);
+    return -1;
+  }
+  memcpy(&lightness_level, pLoad->value.data, pLoad->value.len);
+  LOG_INFO("Lightness data load %d",lightness_level);
+  displayPrintf(DISPLAY_ROW_LPN, "BR: %d (%%)",lightness_level);
+
+
+  //load presence state
+  pLoad = gecko_cmd_flash_ps_load(0x400c);
+  if (pLoad->result) {
+    memset(&people_count, 0, 1);
+    return -1;
+  }
+  memcpy(&people_count, pLoad->value.data, pLoad->value.len);
+  LOG_INFO("Room state load %d",people_count);
+  if(people_count == 0){
+	displayPrintf(DISPLAY_ROW_ACTION, "Room clear");
+	presence_state = 0;
+	gpioLed0SetOff();
+}
+  else{
+	gpioLed0SetOn();
+	displayPrintf(DISPLAY_ROW_ACTION, "People in : %d",people_count);
+  }
+
+  //load window state
+  pLoad = gecko_cmd_flash_ps_load(0x4010);
+  if (pLoad->result) {
+    memset(&presence_state, 0, 1);
+    return -1;
+  }
+  memcpy(&window_state, pLoad->value.data, pLoad->value.len);
+  LOG_INFO("Window state load %d",window_state);
+  if(window_state)displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
+  else displayPrintf(DISPLAY_ROW_TEMPVALUE, "Window Opened");
+  return 0;
 }

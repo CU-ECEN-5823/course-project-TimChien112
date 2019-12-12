@@ -9,6 +9,7 @@
 #define SRC_LOG_H_
 #include "stdio.h"
 #include <inttypes.h>
+#include <stdint.h>
 
 /**
  * Instructions for using this module:
@@ -74,5 +75,10 @@ static inline void logInit() {}
 static inline void logFlush() {}
 #endif
 
+
+uint32_t start_timestamp_tick;
+uint32_t end_timestamp_tick	;
+uint32_t stamp_rollover_times;
+void loggerGetTimestamp_c(uint8_t flag);
 
 #endif /* SRC_LOG_H_ */
